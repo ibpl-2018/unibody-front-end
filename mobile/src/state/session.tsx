@@ -8,6 +8,8 @@ export interface Session {
   token: string;
   phone: string;
   name: string | null;
+  /** Saved their details (account) — hides the “save details” prompt. */
+  registered?: boolean;
   addresses: (AddressDTO & { id: string })[];
   /** ms epoch */
   verifiedAt: number;
@@ -26,6 +28,7 @@ interface SessionCtx {
   session: Session | null;
   signIn: (s: Omit<Session, 'verifiedAt'>) => void;
   signOut: () => void;
+  update: (patch: Partial<Omit<Session, 'token' | 'verifiedAt'>>) => void;
   recentOrders: RecentOrder[];
   rememberOrder: (o: Omit<RecentOrder, 'at'>) => void;
   forgetOrder: (orderNo: string) => void;
@@ -69,6 +72,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     saveJSON(KEYS.session, null);
   }, []);
 
+  const update = useCallback((patch: Partial<Omit<Session, 'token' | 'verifiedAt'>>) => {
+    setSession((s) => {
+      if (!s) return s;
+      const next = { ...s, ...patch };
+      saveJSON(KEYS.session, next);
+      return next;
+    });
+  }, []);
+
   const rememberOrder = useCallback((o: Omit<RecentOrder, 'at'>) => {
     setRecent((list) => {
       const next = [{ ...o, at: Date.now() }, ...list.filter((x) => x.orderNo !== o.orderNo)].slice(0, 20);
@@ -103,8 +115,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ ready, session, signIn, signOut, recentOrders, rememberOrder, forgetOrder, phoneFor, recentSearches, addSearch, clearSearches }),
-    [ready, session, signIn, signOut, recentOrders, rememberOrder, forgetOrder, phoneFor, recentSearches, addSearch, clearSearches],
+    () => ({ ready, session, signIn, signOut, update, recentOrders, rememberOrder, forgetOrder, phoneFor, recentSearches, addSearch, clearSearches }),
+    [ready, session, signIn, signOut, update, recentOrders, rememberOrder, forgetOrder, phoneFor, recentSearches, addSearch, clearSearches],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

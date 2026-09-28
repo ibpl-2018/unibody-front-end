@@ -166,7 +166,7 @@ function SignInCard() {
     setErr(null);
     try {
       const r = await api.store.verifyOtp(normalizePhone(phone), c);
-      signIn({ token: r.token, phone: r.phone, name: r.customer?.name ?? null, addresses: r.customer?.addresses ?? [] });
+      signIn({ token: r.token, phone: r.phone, name: r.customer?.name ?? null, registered: r.customer?.registered ?? false, addresses: r.customer?.addresses ?? [] });
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : errorMessage(e));
     } finally {

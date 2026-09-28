@@ -264,7 +264,7 @@ export default function Checkout() {
               error={errors.phone}
               name={d.name}
               onVerified={(res) => {
-                signIn({ token: res.token, phone: res.phone, name: res.customer?.name ?? (d.name || null), addresses: res.customer?.addresses ?? [] });
+                signIn({ token: res.token, phone: res.phone, name: res.customer?.name ?? (d.name || null), registered: res.customer?.registered ?? false, addresses: res.customer?.addresses ?? [] });
                 setErrors((e) => ({ ...e, phone: '' }));
                 const a = res.customer?.addresses?.[0];
                 setD((x) => ({
