@@ -24,3 +24,65 @@ jobs:
       - run: npm run lint
       - run: npx expo-doctor
       - run: npx expo export --platform android --platform ios
+  e2e:
+    # Full-stack browser tests: checks out unibody-back-end next to this repo, runs Postgres + API + web.
+    # If unibody-back-end is private, add a repo secret BACKEND_REPO_TOKEN (fine-grained PAT, contents:read).
+    runs-on: ubuntu-latest
+    needs: web
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: unibody, POSTGRES_PASSWORD: unibody, POSTGRES_DB: unibody }
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U unibody" --health-interval 5s --health-retries 20
+    env:
+      DATABASE_URL: postgres://unibody:unibody@localhost:5432/unibody
+      JWT_SECRET: ci-jwt-secret-ci-jwt-secret-ci-jwt-secret
+      OTP_SECRET: ci-otp-secret-ci-otp-secret-ci-otp-secret
+      OTP_DEV_MODE: 'true'
+      PAYMENTS_MOCK: 'true'
+      RATE_LIMIT_ALLOWLIST: 127.0.0.1,::1,::ffff:127.0.0.1
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: unibody-front-end }
+      - uses: actions/checkout@v4
+        with:
+          repository: ibpl-2018/unibody-back-end
+          path: unibody-back-end
+          token: ${{ secrets.BACKEND_REPO_TOKEN || github.token }}
+      - uses: pnpm/action-setup@v4
+        with: { package_json_file: unibody-front-end/package.json }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: API — install, migrate, seed, start
+        working-directory: unibody-back-end
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm db:migrate && pnpm db:seed
+          nohup pnpm start > api.log 2>&1 &
+          npx wait-on -t 60000 http://localhost:4000/api/health
+      - name: Web — install, build, start
+        working-directory: unibody-front-end
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          nohup pnpm start > web.log 2>&1 &
+          npx wait-on -t 60000 http://localhost:3000
+      - name: Playwright (installed Google Chrome)
+        working-directory: unibody-front-end
+        run: pnpm e2e
+      - name: Regression (API + web)
+        working-directory: unibody-back-end
+        run: pnpm regression
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results
+          path: |
+            unibody-front-end/e2e-results/report
+            unibody-front-end/e2e-results/artifacts
+            unibody-back-end/api.log
+            unibody-front-end/web.log
