@@ -67,6 +67,15 @@ export const placeOrderSchema = z.object({
 });
 export type PlaceOrderInput = z.infer<typeof placeOrderSchema>;
 
+/** Staff-created order (phone / WhatsApp / walk-in). No OTP — the staff member vouches for the number. */
+export const adminPlaceOrderSchema = placeOrderSchema.omit({ source: true }).extend({
+  phone: phoneSchema,
+  /** Online method only: payment already received outside the site (UPI to shop, cash, card machine). */
+  paidOffline: z.boolean().default(false),
+  paymentRef: z.string().trim().max(60).optional().or(z.literal('')),
+});
+export type AdminPlaceOrderInput = z.input<typeof adminPlaceOrderSchema>;
+
 export const leadSchema = z.object({
   name: z.string().trim().max(80).optional(),
   items: z.array(cartItemSchema).min(1).max(30),

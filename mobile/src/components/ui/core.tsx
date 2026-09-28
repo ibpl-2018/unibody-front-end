@@ -5,6 +5,7 @@ import {
   Animated,
   Platform,
   Pressable,
+  StyleSheet,
   Text as RNText,
   TextInput,
   View,
@@ -18,6 +19,7 @@ import {
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { RADIUS, type Palette } from '@/theme/tokens';
+import { font } from '@/theme/fonts';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -53,10 +55,12 @@ export interface TextProps extends RNTextProps {
 export function Text({ variant = 'body', color = 'fg', weight, center, style, maxFontSizeMultiplier = 1.6, ...rest }: TextProps) {
   const { colors } = useTheme();
   const c = (colors as unknown as Record<string, string>)[color] ?? color;
+  // Final weight: style override > weight prop > variant — then map it to the matching Inter face.
+  const w = StyleSheet.flatten(style)?.fontWeight ?? weight ?? VARIANTS[variant].fontWeight;
   return (
     <RNText
       maxFontSizeMultiplier={maxFontSizeMultiplier}
-      style={[VARIANTS[variant], { color: c }, weight ? { fontWeight: weight } : null, center ? { textAlign: 'center' } : null, style]}
+      style={[VARIANTS[variant], { color: c }, center ? { textAlign: 'center' } : null, style, font(w)]}
       {...rest}
     />
   );
@@ -134,7 +138,7 @@ export function Button({ title, variant = 'primary', size = 'md', icon, iconRigh
       ) : (
         <>
           {icon && <Ionicons name={icon} size={fs + 2} color={c.fg} />}
-          <RNText maxFontSizeMultiplier={1.4} style={{ color: c.fg, fontSize: fs, fontWeight: '600' }} numberOfLines={1}>
+          <RNText maxFontSizeMultiplier={1.4} style={{ color: c.fg, fontSize: fs, ...font('600') }} numberOfLines={1}>
             {title}
           </RNText>
           {iconRight && <Ionicons name={iconRight} size={fs + 1} color={c.fg} />}
@@ -332,7 +336,7 @@ export function Pill({ label, active, onPress, left, count }: { label: string; a
         opacity: pressed ? 0.8 : 1,
       })}>
       {left}
-      <RNText maxFontSizeMultiplier={1.3} style={{ color: active ? colors.onInverse : colors.fg, fontSize: 14, fontWeight: '600' }}>
+      <RNText maxFontSizeMultiplier={1.3} style={{ color: active ? colors.onInverse : colors.fg, fontSize: 14, ...font('600') }}>
         {label}
         {count !== undefined ? ` · ${count}` : ''}
       </RNText>
@@ -364,7 +368,7 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
               boxShadow: active ? '0 1px 3px rgba(0,0,0,0.12)' : undefined,
             }}>
             {o.icon && <Ionicons name={o.icon} size={16} color={active ? colors.fg : colors.muted} />}
-            <RNText maxFontSizeMultiplier={1.3} style={{ fontSize: 14, fontWeight: '600', color: active ? colors.fg : colors.muted }}>
+            <RNText maxFontSizeMultiplier={1.3} style={{ fontSize: 14, ...font('600'), color: active ? colors.fg : colors.muted }}>
               {o.label}
             </RNText>
           </Pressable>

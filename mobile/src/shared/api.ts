@@ -1,6 +1,7 @@
 import type { OrderStatus } from './constants';
 import type {
   AddressInput,
+  AdminPlaceOrderInput,
   CartItemInput,
   CouponInput,
   PlaceOrderInput,
@@ -10,6 +11,7 @@ import type {
 } from './schemas';
 import type {
   AdminLoginResponse,
+  AdminPlaceOrderResponse,
   AdminOrderDetail,
   AdminOrderListItem,
   AdminProductDTO,
@@ -168,6 +170,7 @@ export function createApiClient(opts: ApiClientOptions) {
       orders: (q: { status?: OrderStatus | 'ALL'; q?: string; payment?: string; city?: string; page?: number; pageSize?: number } = {}) =>
         get<Paged<AdminOrderListItem> & { counts: Record<string, number>; /** distinct delivery cities (newer API builds) */ cities?: string[] }>('/api/admin/orders', q as Query),
       order: (id: string) => get<AdminOrderDetail>(`/api/admin/orders/${id}`),
+      createOrder: (body: AdminPlaceOrderInput) => post<AdminPlaceOrderResponse>('/api/admin/orders', body),
       setStatus: (id: string, status: OrderStatus, note?: string) => post<AdminOrderDetail>(`/api/admin/orders/${id}/status`, { status, note }),
       bulkStatus: (ids: string[], status: OrderStatus) => post<{ updated: number; failed: { id: string; message: string }[] }>('/api/admin/orders/bulk-status', { ids, status }),
       addNote: (id: string, note: string) => post<AdminOrderDetail>(`/api/admin/orders/${id}/notes`, { note }),

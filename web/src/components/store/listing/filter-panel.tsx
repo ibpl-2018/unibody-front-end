@@ -6,11 +6,7 @@ import { cn } from '@/lib/cn';
 import type { ListingFilters } from '@/lib/store/filters';
 
 const TONE_DOT: Record<string, string> = { success: 'bg-success', info: 'bg-accent', purple: 'bg-purple', warning: 'bg-warning', danger: 'bg-danger', neutral: 'bg-subtle' };
-const LAYOUTS = [
-  { value: 'US', label: 'US English' },
-  { value: 'UK', label: 'UK English' },
-  { value: 'IN', label: 'Indian (Hindi)' },
-];
+const LAYOUT_LABEL: Record<string, string> = { US: 'US English', UK: 'UK English', IN: 'Indian (Hindi)' };
 
 const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
@@ -128,10 +124,10 @@ export function FilterPanel({ facets, filters, onChange, showLayout }: { facets:
           <PriceRange min={pMin} max={pMax} value={[filters.min ?? pMin, filters.max ?? pMax]} onCommit={([a, b]) => onChange({ min: a > pMin ? a : null, max: b < pMax ? b : null })} />
         </Group>
       )}
-      {showLayout && (
+      {showLayout && facets.layouts.length > 0 && (
         <Group title="Keyboard layout">
-          {LAYOUTS.map((l) => (
-            <CheckRow key={l.value} checked={filters.layout.includes(l.value)} onChange={() => onChange({ layout: toggle(filters.layout, l.value) })} label={l.label} />
+          {facets.layouts.map((l) => (
+            <CheckRow key={l.value} checked={filters.layout.includes(l.value)} onChange={() => onChange({ layout: toggle(filters.layout, l.value) })} label={LAYOUT_LABEL[l.value] ?? l.value} count={l.count} />
           ))}
         </Group>
       )}

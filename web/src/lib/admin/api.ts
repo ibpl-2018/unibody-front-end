@@ -109,6 +109,7 @@ export const PERMS = {
   leads: ['OWNER', 'MANAGER'],
   catalogEdit: ['OWNER', 'MANAGER'],
   productEdit: ['OWNER', 'MANAGER'],
+  orderCreate: ['OWNER', 'MANAGER'],
   stockEdit: ['OWNER', 'MANAGER'],
   purchases: ['OWNER', 'MANAGER'],
   suppliers: ['OWNER', 'MANAGER'],

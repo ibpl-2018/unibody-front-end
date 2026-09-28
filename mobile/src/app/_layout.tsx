@@ -1,3 +1,4 @@
+import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -10,6 +11,7 @@ import { CartProvider, useCart } from '@/state/cart';
 import { SessionProvider, useSession } from '@/state/session';
 import { StoreConfigProvider } from '@/state/store-config';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
+import { font, INTER_FONTS } from '@/theme/fonts';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -17,7 +19,9 @@ function Navigator() {
   const { colors, scheme, ready: themeReady } = useTheme();
   const { ready: cartReady } = useCart();
   const { ready: sessionReady } = useSession();
-  const ready = themeReady && cartReady && sessionReady;
+  const [fontsLoaded, fontError] = useFonts(INTER_FONTS);
+  // Splash stays up until fonts are ready (on a font error we continue with the system font).
+  const ready = themeReady && cartReady && sessionReady && (fontsLoaded || !!fontError);
   const [intro, setIntro] = useState(true); // animated intro once per launch, over the first screen
 
   useEffect(() => {
@@ -43,7 +47,7 @@ function Navigator() {
             headerBackTitle: 'Back',
             headerShadowVisible: false,
             headerTintColor: colors.accent,
-            headerTitleStyle: { color: colors.fg, fontWeight: '600' },
+            headerTitleStyle: { color: colors.fg, fontFamily: font('600').fontFamily },
             headerStyle: { backgroundColor: colors.bg },
             contentStyle: { backgroundColor: colors.bg },
           }}>

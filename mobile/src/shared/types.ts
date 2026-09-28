@@ -104,6 +104,8 @@ export interface ProductFacetsDTO {
   categories: { id: string; name: string; count: number }[];
   conditions: { value: Condition; count: number }[];
   colours: { value: string; count: number }[];
+  /** Keyboard layouts present in the current scope (only products that have one). */
+  layouts: { value: string; count: number }[];
   priceMin: number;
   priceMax: number;
 }
@@ -434,6 +436,12 @@ export interface PurchaseDTO {
   paymentState: 'PAID' | 'PARTLY_PAID' | 'UNPAID';
   stockState: 'PENDING' | 'PARTIAL' | 'RECEIVED' | 'HARVESTING';
   lines: PurchaseLineDTO[];
+}
+
+export interface AdminPlaceOrderResponse extends PlaceOrderResponse {
+  id: string;
+  /** Web /pay link to send the customer when the order awaits online payment. */
+  payUrl: string | null;
 }
 
 export interface InvoiceDTO {

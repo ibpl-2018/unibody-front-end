@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Polygon, RadialGradient, Stop } from 'react-native-svg';
 import { scheduleOnRN } from 'react-native-worklets';
+import { font } from '@/theme/fonts';
 
 // Fixed brand palette (app-icon gradient + store accent) — the intro looks the same in light and dark,
 // like the native splash it continues from.
@@ -332,6 +333,6 @@ const styles = StyleSheet.create({
   bracket: { position: 'absolute', width: 26, height: 26, borderColor: WHITE },
   ring: { borderWidth: 2, borderColor: PURPLE },
   word: { flexDirection: 'row', justifyContent: 'center' },
-  letter: { color: WHITE, fontSize: 40, fontWeight: '800', letterSpacing: -0.8 },
-  tagline: { textAlign: 'center', color: BLUE, fontSize: 15, fontWeight: '600', letterSpacing: 0.2 },
+  letter: { color: WHITE, fontSize: 40, letterSpacing: -0.8, ...font('800') },
+  tagline: { textAlign: 'center', color: BLUE, fontSize: 15, letterSpacing: 0.2, ...font('600') },
 });

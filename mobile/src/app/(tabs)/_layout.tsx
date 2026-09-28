@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 import { useCart } from '@/state/cart';
 import { useTheme } from '@/theme/ThemeProvider';
+import { font } from '@/theme/fonts';
 
 type IconPair = [React.ComponentProps<typeof Ionicons>['name'], React.ComponentProps<typeof Ionicons>['name']];
 const ICONS: Record<string, IconPair> = {
@@ -28,7 +29,7 @@ export default function TabsLayout() {
           borderTopColor: colors.lineSubtle,
           ...(Platform.OS === 'web' ? { height: 64, paddingBottom: 8 } : null),
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarLabelStyle: { fontSize: 11, ...font('500') },
         tabBarIcon: ({ focused, color, size }) => {
           const pair = ICONS[route.name] ?? ICONS.index;
           return <Ionicons name={focused ? pair[0] : pair[1]} size={size - 2} color={color} />;

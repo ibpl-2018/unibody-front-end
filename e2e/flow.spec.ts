@@ -73,7 +73,8 @@ test('admin: process the order while the customer watches live tracking', async 
   await page.getByRole('button', { name: 'Mark packed' }).click();
   await expect(customer.getByText('Packed and quality-checked — handing to the courier.')).toBeVisible();
 
-  await page.getByPlaceholder('e.g. 1490 2231 8876').fill('PW' + Date.now());
+  // Found by its visible label — admin form labels are linked to their inputs.
+  await page.getByLabel('AWB number').fill('PW' + Date.now());
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Shipment saved — customer can now track it')).toBeVisible();
 
@@ -82,6 +83,42 @@ test('admin: process the order while the customer watches live tracking', async 
   await expect(customer.getByRole('list', { name: 'Order progress' }).getByText('Shipped')).toBeVisible();
   await expect(page.getByText(/INV\/\d{2}-\d{2}\/\d{5}/).first()).toBeVisible();
   await customer.close();
+});
+
+test('admin: create a phone order (COD) on the New order screen', async ({ page, request }) => {
+  const p = await (await request.get(`${API}/api/products/${slug}`)).json();
+  await adminLogin(page);
+  await page.goto('/admin/orders');
+  await page.getByRole('link', { name: 'New order' }).click();
+  await page.waitForURL('**/admin/orders/new');
+  await settled(page);
+  await page.getByLabel('Mobile number').fill(randomPhone());
+  await page.getByLabel('Full name').fill('Phone Order Tester');
+  await page.getByLabel('Pincode').fill('560038');
+  await expect(page.getByLabel('City')).toHaveValue(/Bengaluru/i);
+  await page.getByLabel('Flat / House no. / Building').fill('12 MG Road');
+  await page.getByLabel('Area / Street / Locality').fill('Indiranagar');
+  await page.getByPlaceholder('Search product by name, SKU or A-number').fill(p.sku);
+  await page.getByRole('button', { name: p.sku }).first().click(); // name matches as a substring
+  await expect(page.getByText(/^Total$/)).toBeVisible();
+  await page.getByRole('button', { name: 'Create order' }).click();
+  await page.waitForURL(/\/admin\/orders\/[0-9a-f-]{36}$/);
+  await settled(page);
+  await expect(page.getByText('Order created by staff')).toBeVisible();
+  await expect(page.getByText(/#UB-\d{6}-\d{4}/).first()).toBeVisible();
+});
+
+test('admin: bulk-print invoices from the Invoices list', async ({ page, context }) => {
+  await adminLogin(page);
+  await page.goto('/admin/invoices');
+  await settled(page);
+  const rows = page.getByRole('checkbox', { name: 'Select row' });
+  await rows.nth(0).check();
+  await rows.nth(1).check();
+  const [popup] = await Promise.all([context.waitForEvent('page'), page.getByRole('button', { name: 'Print 2 invoices' }).click()]);
+  await popup.waitForLoadState('networkidle');
+  await expect(popup.getByRole('heading', { name: 'TAX INVOICE' })).toHaveCount(2);
+  await popup.close();
 });
 
 test('customer: online payment via the /pay page (mock Razorpay)', async ({ page, request }) => {

@@ -66,9 +66,16 @@ export function orderColumns(opts: { date?: boolean; items?: boolean; compact?: 
       key: 'order',
       header: 'Order',
       cell: (o) => (
-        <Link href={`/admin/orders/${o.id}`} className="whitespace-nowrap font-semibold tabular-nums hover:text-accent">
-          #{o.orderNo}
-        </Link>
+        <div>
+          <Link href={`/admin/orders/${o.id}`} className="whitespace-nowrap font-semibold tabular-nums hover:text-accent">
+            #{o.orderNo}
+          </Link>
+          {/* Phones: status + total live here, since those columns are hidden below `sm` */}
+          <div className="mt-1 flex items-center gap-2 sm:hidden">
+            <StatusBadge status={o.status} admin />
+            <span className="text-[13px] font-medium tabular-nums">{formatINR(o.total)}</span>
+          </div>
+        </div>
       ),
     },
   ];
@@ -86,7 +93,7 @@ export function orderColumns(opts: { date?: boolean; items?: boolean; compact?: 
   cols.push({ key: 'city', header: 'City', hide: 'lg', cell: (o) => <span className="whitespace-nowrap">{o.city}</span> });
   if (opts.items !== false) cols.push({ key: 'items', header: 'Items', align: 'center', hide: 'xl', cell: (o) => <span className="tabular-nums">{o.itemCount}</span> });
   cols.push({ key: 'payment', header: 'Payment', hide: 'sm', cell: (o) => <PaymentBadge status={o.paymentStatus} method={o.paymentMethod} /> });
-  cols.push({ key: 'total', header: 'Total', align: 'right', cell: (o) => <span className="font-medium tabular-nums">{formatINR(o.total)}</span> });
-  cols.push({ key: 'status', header: 'Status', cell: (o) => <StatusBadge status={o.status} admin /> });
+  cols.push({ key: 'total', header: 'Total', align: 'right', hide: 'sm', cell: (o) => <span className="font-medium tabular-nums">{formatINR(o.total)}</span> });
+  cols.push({ key: 'status', header: 'Status', hide: 'sm', cell: (o) => <StatusBadge status={o.status} admin /> });
   return cols;
 }

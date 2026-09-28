@@ -3,7 +3,7 @@
  * Unibody UI kit — small, token-driven primitives shared by the storefront and /admin.
  * Everything here uses theme tokens (bg-surface, text-fg, border-line, bg-accent…) so light/dark just work.
  */
-import { forwardRef, useId } from 'react';
+import { createContext, forwardRef, useContext, useId } from 'react';
 import Link from 'next/link';
 import { Loader2, Moon, Sun, MonitorSmartphone } from 'lucide-react';
 import { CONDITION_SHORT, CONDITION_LABEL, CONDITION_TONE, STATUS_LABEL, ADMIN_STATUS_LABEL, STATUS_TONE, formatINR, type Condition, type OrderStatus, type Tone } from '@unibody/shared';
@@ -94,16 +94,27 @@ const fieldBase =
   'w-full rounded-xl border border-line bg-surface px-3.5 text-[15px] text-fg placeholder:text-subtle outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/15 disabled:opacity-60';
 export const inputClass = (className?: string, invalid?: boolean) => cn(fieldBase, 'h-11', invalid && 'border-danger focus:border-danger focus:ring-danger/15', className);
 
+/** Id of the enclosing <Field>'s label when the Field has no `htmlFor` — controls use it as their accessible name. */
+const FieldLabelContext = createContext<string | undefined>(undefined);
+function useFieldLabel(props: { id?: string; 'aria-label'?: string; 'aria-labelledby'?: string }) {
+  const labelId = useContext(FieldLabelContext);
+  return labelId && !props['aria-label'] && !props['aria-labelledby'] ? { 'aria-labelledby': labelId } : {};
+}
+
 export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }>(function Input({ className, invalid, ...rest }, ref) {
-  return <input ref={ref} className={inputClass(className, invalid)} {...rest} />;
+  const labelled = useFieldLabel(rest);
+  return <input ref={ref} className={inputClass(className, invalid)} {...labelled} {...rest} />;
 });
 export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean }>(function Textarea({ className, invalid, ...rest }, ref) {
-  return <textarea ref={ref} className={cn(fieldBase, 'min-h-24 py-2.5', invalid && 'border-danger', className)} {...rest} />;
+  const labelled = useFieldLabel(rest);
+  return <textarea ref={ref} className={cn(fieldBase, 'min-h-24 py-2.5', invalid && 'border-danger', className)} {...labelled} {...rest} />;
 });
 export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }>(function Select({ className, invalid, children, ...rest }, ref) {
+  const labelled = useFieldLabel(rest);
   return (
     <select
       ref={ref}
+      {...labelled}
       className={cn(fieldBase, 'h-11 appearance-none bg-[length:16px] bg-[right_12px_center] bg-no-repeat pr-9', invalid && 'border-danger', className)}
       style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }}
       {...rest}
@@ -114,14 +125,17 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
 });
 /** Label + control + hint/error. Pass the control as children. */
 export function Field({ label, hint, error, className, children, htmlFor }: { label?: React.ReactNode; hint?: React.ReactNode; error?: string | null; className?: string; children: React.ReactNode; htmlFor?: string }) {
+  const labelId = useId();
+  // Without `htmlFor`, controls inside name themselves from this label via aria-labelledby.
+  const linked = label && !htmlFor ? labelId : undefined;
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       {label && (
-        <label htmlFor={htmlFor} className="text-[13px] font-medium text-muted">
+        <label id={labelId} htmlFor={htmlFor} className="text-[13px] font-medium text-muted">
           {label}
         </label>
       )}
-      {children}
+      <FieldLabelContext.Provider value={linked}>{children}</FieldLabelContext.Provider>
       {error ? <p className="text-xs text-danger">{error}</p> : hint ? <p className="text-xs text-muted">{hint}</p> : null}
     </div>
   );

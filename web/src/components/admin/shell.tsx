@@ -426,6 +426,7 @@ function Bellmenu() {
 function NewMenu() {
   const { can } = useAdmin();
   const items = [
+    can('orderCreate') && { href: '/admin/orders/new', label: 'Order', icon: <ShoppingBag /> },
     can('productEdit') && { href: '/admin/products/new', label: 'Product', icon: <Package /> },
     can('purchases') && { href: '/admin/purchases/new', label: 'Purchase', icon: <ClipboardList /> },
     can('coupons') && { href: '/admin/offers?new=1', label: 'Coupon / offer', icon: <Tag /> },

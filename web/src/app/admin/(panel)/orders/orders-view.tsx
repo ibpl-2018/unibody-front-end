@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Download, Inbox, Printer } from 'lucide-react';
+import Link from 'next/link';
+import { Download, Inbox, Plus, Printer } from 'lucide-react';
 import { ADMIN_STATUS_LABEL, type OrderStatus } from '@unibody/shared';
 import { buttonClass, EmptyState } from '@/components/ui';
 import { useToast } from '@/components/ui/toast';
@@ -96,12 +97,20 @@ export function OrdersView({ initial }: { initial: { status: string; q: string; 
         title="Orders"
         subtitle="Every order updates the customer’s tracking page instantly."
         actions={
-          can('reports') && (
-            <a className={buttonClass('outline')} href={adminApi.admin.reportCsvUrl('sales', { from: daysAgo(90), token })}>
-              <Download className="size-4" />
-              Export CSV
-            </a>
-          )
+          <>
+            {can('reports') && (
+              <a className={buttonClass('outline')} href={adminApi.admin.reportCsvUrl('sales', { from: daysAgo(90), token })}>
+                <Download className="size-4" />
+                Export CSV
+              </a>
+            )}
+            {can('orderCreate') && (
+              <Link className={buttonClass('primary')} href="/admin/orders/new">
+                <Plus className="size-4" />
+                New order
+              </Link>
+            )}
+          </>
         }
       />
       <div className="mb-4 flex flex-col gap-3">
@@ -129,6 +138,7 @@ export function OrdersView({ initial }: { initial: { status: string; q: string; 
           </BulkAction>
         ))}
         <BulkAction onClick={() => window.open(`/admin/labels?ids=${[...selected].join(',')}`, '_blank')}>Print labels</BulkAction>
+        {can('invoices') && <BulkAction onClick={() => window.open(`/admin/invoices/batch?orders=${[...selected].join(',')}`, '_blank')}>Print invoices</BulkAction>}
         <BulkAction disabled={bulkBusy} onClick={() => bulk('CANCELLED')}>
           <span className="text-[#ff6961]">Cancel</span>
         </BulkAction>

@@ -67,6 +67,7 @@ for (const scheme of ['light', 'dark'] as const) {
         ['/admin', 'dashboard'],
         ['/admin/orders', 'orders'],
         [`/admin/orders/${orderNo}`, 'order-detail'],
+        ['/admin/orders/new', 'order-new'],
         ['/admin/invoices', 'invoices'],
         ['/admin/customers', 'customers'],
         ...(customerId ? [[`/admin/customers/${customerId}`, 'customer-detail'] as [string, string]] : []),

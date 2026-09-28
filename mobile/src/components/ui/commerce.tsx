@@ -19,6 +19,7 @@ import {
 import { useTheme } from '@/theme/ThemeProvider';
 import { GRADIENTS, RADIUS, tintFor, toneColors, type TintName } from '@/theme/tokens';
 import { Text, type IconName } from './core';
+import { font } from '@/theme/fonts';
 
 // ---------------------------------------------------------------- Screen
 export function Screen({ children, edges = [], style }: { children: ReactNode; edges?: ('top' | 'bottom')[]; style?: StyleProp<ViewStyle> }) {
@@ -74,7 +75,7 @@ export function Badge({ label, tone = 'neutral', icon, style }: { label: string;
   return (
     <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: c.bg, borderRadius: RADIUS.pill, paddingHorizontal: 8, paddingVertical: 3 }, style]}>
       {icon && <Ionicons name={icon} size={11} color={c.fg} />}
-      <RNText maxFontSizeMultiplier={1.3} style={{ color: c.fg, fontSize: 11.5, fontWeight: '600' }}>
+      <RNText maxFontSizeMultiplier={1.3} style={{ color: c.fg, fontSize: 11.5, ...font('600') }}>
         {label}
       </RNText>
     </View>
@@ -98,7 +99,7 @@ export function Price({ price, mrp, size = 'md', showOff }: { price: number; mrp
   const off = percentOff(price, mrp);
   return (
     <View style={{ flexDirection: size === 'xl' || size === 'lg' ? 'row' : 'column', alignItems: size === 'xl' || size === 'lg' ? 'baseline' : 'flex-start', gap: size === 'xl' ? 10 : 2, flexWrap: 'wrap' }}>
-      <RNText maxFontSizeMultiplier={1.4} style={{ fontSize: fs, fontWeight: '700', color: colors.fg, letterSpacing: -0.3 }} accessibilityLabel={`Price ${formatINR(price)}`}>
+      <RNText maxFontSizeMultiplier={1.4} style={{ fontSize: fs, ...font('700'), color: colors.fg, letterSpacing: -0.3 }} accessibilityLabel={`Price ${formatINR(price)}`}>
         {formatINR(price)}
       </RNText>
       {!!mrp && mrp > price && (
@@ -166,7 +167,7 @@ export function QtyStepper({ value, onChange, min = 1, max = 10, compact }: { va
       accessibilityLabel={`Quantity ${value}`}
       style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.line, borderRadius: RADIUS.pill, height: h }}>
       {btn(value <= min && min === 0 ? 'trash-outline' : 'remove', 'Decrease quantity', value - 1, value <= min && min !== 0)}
-      <RNText maxFontSizeMultiplier={1.3} style={{ minWidth: 22, textAlign: 'center', fontSize: compact ? 15 : 16, fontWeight: '600', color: colors.fg }}>
+      <RNText maxFontSizeMultiplier={1.3} style={{ minWidth: 22, textAlign: 'center', fontSize: compact ? 15 : 16, ...font('600'), color: colors.fg }}>
         {value}
       </RNText>
       {btn('add', 'Increase quantity', value + 1, value >= max)}
@@ -242,7 +243,7 @@ export function Logo({ size = 28, light }: { size?: number; light?: boolean }) {
       <Gradient name="brand" style={{ width: size, height: size, borderRadius: size * 0.28, alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name="construct-outline" size={size * 0.58} color="#fff" />
       </Gradient>
-      <RNText maxFontSizeMultiplier={1.3} style={{ fontSize: 18, fontWeight: '700', letterSpacing: -0.4, color: light ? '#f5f5f7' : colors.fg }}>
+      <RNText maxFontSizeMultiplier={1.3} style={{ fontSize: 18, ...font('700'), letterSpacing: -0.4, color: light ? '#f5f5f7' : colors.fg }}>
         Unibody
       </RNText>
     </View>

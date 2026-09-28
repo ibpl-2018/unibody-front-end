@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Download, ExternalLink, FileText } from 'lucide-react';
 import { formatINR } from '@unibody/shared';
 import { EmptyState, buttonClass } from '@/components/ui';
-import { DataTable, ErrorState, PageHeader, Pagination, SearchInput, type Column } from '@/components/admin/ui';
+import { BulkAction, BulkBar, DataTable, ErrorState, PageHeader, Pagination, SearchInput, type Column } from '@/components/admin/ui';
 import { NoAccess } from '@/components/admin/no-access';
 import { adminApi, daysAgo, useApi, useDebounced } from '@/lib/admin/api';
 import { useAdmin } from '@/lib/admin/session';
@@ -18,10 +18,13 @@ export default function InvoicesPage() {
   const allowed = can('invoices');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const dq = useDebounced(q.trim(), 300);
   const { data, error, loading, refetch } = useApi(() => adminApi.admin.invoices({ q: dq || undefined, page }), [dq, page], { enabled: allowed });
   useResetPage(setPage, [dq]);
   if (!allowed) return <NoAccess what="invoices" />;
+  const toggle = (id: string) => setSelected((s) => (s.has(id) ? (s.delete(id), new Set(s)) : new Set(s.add(id))));
+  const toggleAll = (ids: string[], on: boolean) => setSelected(on ? new Set(ids) : new Set());
   const cols: Column<Row>[] = [
     { key: 'n', header: 'Invoice', cell: (r) => <span className="font-mono text-[13px] font-semibold">{r.invoiceNo}</span> },
     { key: 'd', header: 'Date', cell: (r) => <span className="text-[13px] text-muted">{fmtDate(r.date)}</span> },
@@ -67,7 +70,10 @@ export default function InvoicesPage() {
         <ErrorState message={error} onRetry={refetch} />
       ) : (
         <>
-          <DataTable columns={cols} rows={data?.items} loading={loading} rowKey={(r) => r.id} onRowClick={(r) => window.open(`/admin/invoices/${r.id}`, '_blank')} empty={<EmptyState icon={<FileText className="size-6" />} title={dq ? 'No invoices match' : 'No invoices yet'} body="Invoices appear once orders are shipped." />} />
+          <BulkBar count={selected.size} onClear={() => setSelected(new Set())}>
+            <BulkAction onClick={() => window.open(`/admin/invoices/batch?ids=${[...selected].join(',')}`, '_blank')}>Print {selected.size > 1 ? `${selected.size} invoices` : 'invoice'}</BulkAction>
+          </BulkBar>
+          <DataTable columns={cols} rows={data?.items} loading={loading} rowKey={(r) => r.id} selected={selected} onToggle={toggle} onToggleAll={toggleAll} onRowClick={(r) => window.open(`/admin/invoices/${r.id}`, '_blank')} empty={<EmptyState icon={<FileText className="size-6" />} title={dq ? 'No invoices match' : 'No invoices yet'} body="Invoices appear once orders are shipped." />} />
           {data && <Pagination page={page} pageSize={data.pageSize} total={data.total} onPage={setPage} />}
         </>
       )}
