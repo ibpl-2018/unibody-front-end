@@ -38,7 +38,8 @@ export function Listing({ initial, filters, scope, basePath, categories }: Listi
   const facetCats = initial.facets.categories.map((fc) => ({ ...fc, cat: catById.get(fc.id) })).filter((x) => x.cat);
   const allCount = initial.facets.categories.reduce((a, c) => a + c.count, 0);
   const activeCat = filters.cat ? catBySlug.get(filters.cat) : undefined;
-  const showLayout = (!!filters.cat && KEYBOARD_CATS.has(filters.cat)) || filters.layout.length > 0;
+  // Layout matters only for keyboards: show it whenever keyboards are in the results (e.g. a model page), as in D02.
+  const showLayout = (initial.facets.layouts.length > 0 && (!filters.cat || KEYBOARD_CATS.has(filters.cat))) || filters.layout.length > 0;
   const nActive = activeFilterCount(filters);
 
   const apply = (patch: Partial<ListingFilters>) => {
