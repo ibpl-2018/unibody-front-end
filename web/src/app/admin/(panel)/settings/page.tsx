@@ -391,12 +391,28 @@ function Staff() {
             <p className="font-medium">
               {u.name} {u.id === user.id && <span className="text-xs font-normal text-muted">(you)</span>}
             </p>
-            <p className="text-xs text-muted">{u.email}</p>
+            <p className="text-xs text-muted">
+              {u.email}
+              {u.phone ? ` · +91 ${u.phone}` : ''}
+            </p>
           </div>
         </div>
       ),
     },
     { key: 'r', header: 'Role', cell: (u) => <Badge tone={u.role === 'OWNER' ? 'purple' : u.role === 'MANAGER' ? 'info' : 'neutral'}>{ROLE_LABEL[u.role]}</Badge> },
+    {
+      key: 'p',
+      header: 'Sign-in by phone',
+      hide: 'md',
+      cell: (u) =>
+        u.phone ? (
+          <Badge tone="success" dot>
+            {u.role === 'OWNER' ? '2-step on' : 'OTP on'}
+          </Badge>
+        ) : (
+          <span className="text-[13px] text-subtle">{u.role === 'OWNER' ? 'Add phone for 2-step' : 'No phone'}</span>
+        ),
+    },
     { key: 'l', header: 'Last sign-in', hide: 'md', cell: (u) => <span className="text-[13px] text-muted">{u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : 'Never'}</span> },
     { key: 's', header: 'Status', cell: (u) => <Badge tone={u.active ? 'success' : 'neutral'} dot>{u.active ? 'Active' : 'Disabled'}</Badge> },
     {
@@ -439,6 +455,7 @@ function StaffModal({ item, self, onClose, onSaved }: { item?: AdminUserDTO; sel
   const [email, setEmail] = useState(item?.email ?? '');
   const [role, setRole] = useState<AdminRole>(item?.role ?? 'PACKER');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState(item?.phone ?? '');
   const [active, setActive] = useState(item?.active ?? true);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -448,7 +465,7 @@ function StaffModal({ item, self, onClose, onSaved }: { item?: AdminUserDTO; sel
     if (!item && password.length < 8) return setErrors({ password: 'At least 8 characters' });
     if (item && password && password.length < 8) return setErrors({ password: 'At least 8 characters' });
     setBusy(true);
-    const b = { name: name.trim(), email: email.trim().toLowerCase(), role, active, ...(password ? { password } : {}) };
+    const b = { name: name.trim(), email: email.trim().toLowerCase(), phone: phone.trim() || null, role, active, ...(password ? { password } : {}) };
     try {
       if (item) await adminApi.admin.updateStaff(item.id, b);
       else await adminApi.admin.createStaff(b);
@@ -487,6 +504,12 @@ function StaffModal({ item, self, onClose, onSaved }: { item?: AdminUserDTO; sel
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </Field>
         </FormGrid>
+        <Field
+          label="Mobile (optional)"
+          error={errors.phone}
+          hint={role === 'OWNER' ? 'Turns on 2-step verification: a code is sent here after your password. Also used to reset your password.' : 'Lets them sign in with a code on this phone, and reset a forgotten password.'}>
+          <Input type="tel" inputMode="numeric" placeholder="98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} invalid={!!errors.phone} />
+        </Field>
         <Field label="Role" hint={ROLE_INFO[role]}>
           <Select value={role} onChange={(e) => setRole(e.target.value as AdminRole)} disabled={self}>
             {/* There is only one Super Admin — it can't be given to anyone else. */}

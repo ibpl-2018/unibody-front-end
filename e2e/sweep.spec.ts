@@ -11,7 +11,7 @@ async function check(page: Page, path: string, shot: string, testInfo: { project
   if (path.startsWith('/admin')) {
     // Guard against silently sweeping the login screen.
     expect(new URL(page.url()).pathname, `${path} redirected`).not.toMatch(/^\/admin\/login/);
-    await expect(page.getByRole('button', { name: 'Sign in' }), `${path} shows login`).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Sign in to Admin' }), `${path} shows login`).toHaveCount(0);
   }
   await expect(page.locator('body')).not.toContainText(/partsbay/i);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

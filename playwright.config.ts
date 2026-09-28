@@ -18,7 +18,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'setup', testMatch: /(flow|security)\.spec\.ts/, use: { viewport: { width: 1440, height: 900 } } },
+    { name: 'setup', testMatch: /(flow|security|auth)\.spec\.ts/, use: { viewport: { width: 1440, height: 900 } } },
     { name: 'desktop', testMatch: /sweep\.spec\.ts/, dependencies: ['setup'], use: { viewport: { width: 1440, height: 900 } } },
     { name: 'intro', testMatch: /intro\.spec\.ts/, use: { viewport: { width: 1280, height: 800 }, video: 'on' } },
     { name: 'mobile', testMatch: /sweep\.spec\.ts/, dependencies: ['setup'], use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },

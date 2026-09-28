@@ -10,7 +10,9 @@ import type {
   SettingsInput,
 } from './schemas';
 import type {
+  AdminCodeSentResponse,
   AdminLoginResponse,
+  AdminTwoStepResponse,
   ApprovalDTO,
   AuditEntryDTO,
   AuditVerifyDTO,
@@ -172,7 +174,13 @@ export function createApiClient(opts: ApiClientOptions) {
 
     // ---------- Admin ----------
     admin: {
-      login: (email: string, password: string) => post<AdminLoginResponse>('/api/admin/auth/login', { email, password }),
+      login: (email: string, password: string) => post<AdminLoginResponse | AdminTwoStepResponse>('/api/admin/auth/login', { email, password }),
+      twoStepVerify: (ticket: string, code: string) => post<AdminLoginResponse>('/api/admin/auth/2fa/verify', { ticket, code }),
+      twoStepResend: (ticket: string) => post<AdminCodeSentResponse>('/api/admin/auth/2fa/resend', { ticket }),
+      otpSend: (phone: string) => post<AdminCodeSentResponse>('/api/admin/auth/otp/send', { phone }),
+      otpVerify: (phone: string, code: string) => post<AdminLoginResponse>('/api/admin/auth/otp/verify', { phone, code }),
+      forgotPassword: (email: string) => post<AdminCodeSentResponse>('/api/admin/auth/forgot', { email }),
+      resetPassword: (email: string, code: string, password: string) => post<{ reset: true }>('/api/admin/auth/reset', { email, code, password }),
       me: () => get<AdminUserDTO>('/api/admin/me'),
       eventsUrl: (token: string) => `${base}/api/admin/events${qs({ token })}`,
       dashboard: (days = 30) => get<DashboardDTO>('/api/admin/dashboard', { days }),

@@ -257,11 +257,27 @@ export interface AdminUserDTO {
   email: string;
   role: AdminRole;
   active: boolean;
+  /** Full number (owner-only staff list); null when none is set. */
+  phone: string | null;
   lastLoginAt: string | null;
 }
 export interface AdminLoginResponse {
   token: string;
   user: AdminUserDTO;
+}
+/** Password was right, but the Super Admin must also enter the code sent to their phone. */
+export interface AdminTwoStepResponse {
+  twoStep: true;
+  ticket: string;
+  phoneMasked: string;
+  expiresInSec: number;
+  /** Only when OTP_DEV_MODE is on. */
+  devCode?: string;
+}
+export interface AdminCodeSentResponse {
+  sent: true;
+  expiresInSec: number;
+  devCode?: string;
 }
 
 export interface AdminOrderListItem {

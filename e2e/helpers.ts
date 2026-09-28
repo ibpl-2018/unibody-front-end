@@ -48,11 +48,13 @@ export { expect };
 
 export async function adminLogin(page: Page, who = OWNER) {
   await page.goto('/admin/login');
-  await page.getByLabel('Work email').fill(who.email);
+  // Let React hydrate first — typing into the server-rendered form would be wiped / submitted natively.
+  await page.waitForLoadState('networkidle');
+  await page.getByLabel('Email', { exact: true }).fill(who.email);
   await page.getByLabel('Password', { exact: true }).fill(who.password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await page.waitForURL((u) => !u.pathname.startsWith('/admin/login'));
-  await expect(page.getByRole('button', { name: 'Sign in' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Sign in to Admin' })).toHaveCount(0);
 }
 
 /** Waits for loading skeletons to settle and asserts no error screen is showing. */

@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ADMIN_STATUS_LABEL, type AdminUserDTO, type OrderLiveEvent } from '@unibody/shared';
+import { ADMIN_STATUS_LABEL, ApiError, type AdminUserDTO, type OrderLiveEvent } from '@unibody/shared';
 import { useToast } from '@/components/ui/toast';
 import { adminApi, adminToken, can, type Perm } from './api';
 
@@ -92,17 +92,28 @@ export function AdminSession({ children, fallback }: { children: React.ReactNode
       return;
     }
     setToken(t);
-    adminApi.admin
-      .me()
-      .then(setUser)
-      .catch(() => {
-        adminToken.set(null);
-        router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
-      });
+    // Only a rejected token signs you out. A dropped connection (or a request the browser cancels while
+    // navigating) must not wipe the session — retry instead.
+    let alive = true;
+    const load = (attempt: number) =>
+      adminApi.admin
+        .me()
+        .then((u) => alive && setUser(u))
+        .catch((err) => {
+          if (!alive) return;
+          if ((err instanceof ApiError && (err.status === 401 || err.status === 403)) || attempt >= 5) {
+            adminToken.set(null);
+            router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
+          } else setTimeout(() => load(attempt + 1), 1000 * attempt);
+        });
+    load(1);
     try {
       const d = Number(localStorage.getItem(DAYS_KEY));
       if (d === 7 || d === 30 || d === 90) setDaysState(d);
     } catch {}
+    return () => {
+      alive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

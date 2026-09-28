@@ -86,11 +86,20 @@ export const trackSchema = z.object({ orderNo: z.string().trim().toUpperCase().m
 
 // ---------- Admin ----------
 export const adminLoginSchema = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(6) });
+const otpCodeSchema = z.string().regex(/^\d{6}$/, 'Enter the 6-digit code');
+/** Staff sign-in with a code sent to the phone on their account. */
+export const adminOtpVerifySchema = z.object({ phone: phoneSchema, code: otpCodeSchema });
+/** Second step for the Super Admin: the ticket from the password step + the code sent to their phone. */
+export const adminTwoStepSchema = z.object({ ticket: z.string().min(10), code: otpCodeSchema });
+export const adminForgotSchema = z.object({ email: z.string().trim().toLowerCase().email() });
+export const adminResetSchema = z.object({ email: z.string().trim().toLowerCase().email(), code: otpCodeSchema, password: z.string().min(8, 'Use at least 8 characters') });
 
 export const staffSchema = z.object({
   name: z.string().trim().min(2),
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8).optional(),
+  /** Phone for OTP sign-in, password reset and (Super Admin) 2-step verification. */
+  phone: z.union([phoneSchema, z.literal('').transform(() => null), z.null()]).optional(),
   role: z.enum(ADMIN_ROLES),
   active: z.boolean().default(true),
 });
