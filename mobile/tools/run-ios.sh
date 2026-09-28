@@ -1,14 +1,15 @@
 #!/bin/bash
 # Unibody — run the app on the iPhone 17 Pro Max simulator (the project's reference device).
-# Expo SDK 57 needs Xcode 26.4+ for a native build; with an older Xcode this falls back to Expo Go.
-# Usage:  ./tools/run-ios.sh          (auto: native if Xcode ≥ 26.4, else Expo Go)
-#         ./tools/run-ios.sh --go     (force Expo Go)
+# Native build works on Xcode 26.0+ (patches/expo-modules-jsi makes Expo SDK 57 build with Swift 6.2).
+# Usage:  ./tools/run-ios.sh            native dev build, Metro on $PORT (default 8083 — 8081 is AdFire's)
+#         ./tools/run-ios.sh --release  native Release build (JS embedded, no Metro; real splash → intro)
+#         ./tools/run-ios.sh --go       Expo Go instead of a native build
 # Override the device with SIM="iPhone 17 Pro" ./tools/run-ios.sh
 set -e
 cd "$(dirname "$0")/.."
 
 SIM="${SIM:-iPhone 17 Pro Max}"
-PORT="${PORT:-8082}"
+PORT="${PORT:-8083}"
 export LANG="${LANG:-en_US.UTF-8}" LC_ALL="${LC_ALL:-en_US.UTF-8}" # CocoaPods needs a UTF-8 locale
 
 command -v xcrun >/dev/null || { echo "✖ Xcode not found. Install Xcode from the App Store."; exit 1; }
@@ -21,12 +22,14 @@ xcrun simctl boot "$UDID" 2>/dev/null || true
 open -a Simulator --args -CurrentDeviceUDID "$UDID"
 xcrun simctl bootstatus "$UDID" >/dev/null
 
-XCODE_VERSION=$(xcodebuild -version | awk 'NR==1{print $2}')
-if [ "$1" != "--go" ] && printf '26.4\n%s\n' "$XCODE_VERSION" | sort -V -C; then
-  echo "▶ Xcode $XCODE_VERSION — native build on $SIM…"
-  npx expo run:ios --device "$UDID"
+if [ "$1" = "--release" ]; then
+  echo "▶ Native Release build on $SIM…"
+  npx expo run:ios --configuration Release --device "$UDID" --no-bundler
+elif [ "$1" != "--go" ]; then
+  echo "▶ Native dev build on $SIM (Metro :$PORT)…"
+  npx expo run:ios --device "$UDID" --port "$PORT"
 else
-  echo "▶ Xcode $XCODE_VERSION < 26.4 (or --go) — running in Expo Go on $SIM (port $PORT)."
+  echo "▶ Expo Go on $SIM (port $PORT)."
   # --lan binds all interfaces (--host localhost binds IPv6 only and the simulator can't reach it).
   npx expo start --go --lan --port "$PORT" &
   EXPO_PID=$!

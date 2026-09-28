@@ -51,7 +51,7 @@ npx eas-cli@latest build --profile production --platform all   # store builds (a
 npx eas-cli@latest submit --profile production --platform ios|android
 ```
 
-`eas.json` is committed. Both profiles point at `https://api.unibody.in` / `https://unibody.in`. Local iOS builds need **Xcode 26.4+** (Expo SDK 57); EAS builds don't need local Xcode.
+`eas.json` is committed. Both profiles point at `https://api.unibody.in` / `https://unibody.in`. Local iOS builds work on **Xcode 26.0+**: Expo SDK 57 officially needs Xcode 26.4, so `patches/expo-modules-jsi+57.1.1.patch` (applied by `postinstall`) makes its Swift build with Swift 6.2 — same behaviour, older compiler syntax. After upgrading `expo-modules-jsi`, drop the patch if the build passes without it. `npm run ios` / `npm run ios:release` target the iPhone 17 Pro Max. EAS builds don't need local Xcode.
 
 - The bundle id and package are both `in.unibody.app`. The scheme is `unibody`.
 - OTA updates are not set up yet (would need `npx expo install expo-updates` + `eas update:configure`).

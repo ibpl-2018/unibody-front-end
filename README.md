@@ -25,7 +25,7 @@ Mobile:
 ```bash
 cd mobile && npm ci && cp .env.example .env.local
 npx expo start                             # dev server (needs a development build — see mobile/README.md)
-npx expo run:ios                           # iOS simulator — needs Xcode 26.4+
+npm run ios                                # iPhone 17 Pro Max simulator (native build; Xcode 26.0+)
 npx expo run:android                       # Android emulator — needs JDK 17 + Android SDK 36
 ```
 

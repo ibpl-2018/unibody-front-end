@@ -51,7 +51,8 @@
     "export:web": "expo export --platform web",
     "sync-shared": "node ./tools/sync-shared.mjs",
     "ios:go": "./tools/run-ios.sh --go",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "ios:release": "./tools/run-ios.sh --release"
   },
   "private": true
 }
