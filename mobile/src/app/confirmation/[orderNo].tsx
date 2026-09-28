@@ -52,9 +52,11 @@ export default function Confirmation() {
           <Text variant="subhead" color="muted" center style={{ maxWidth: 320 }}>
             {unpaid
               ? 'Your order is saved. Complete the payment to confirm it.'
-              : o?.paymentMethod === 'COD'
-                ? `We’ll call or WhatsApp you shortly to confirm. Pay ${formatINR(o.totals.total)} on delivery.`
-                : 'Payment received. We’ve sent the details on WhatsApp/SMS.'}
+              : !o
+                ? 'We’ve sent the details on WhatsApp/SMS.' // don't claim a payment before the order has loaded
+                : o.paymentMethod === 'COD'
+                  ? `We’ll call or WhatsApp you shortly to confirm. Pay ${formatINR(o.totals.total)} on delivery.`
+                  : 'Payment received. We’ve sent the details on WhatsApp/SMS.'}
           </Text>
           <View style={{ backgroundColor: colors.surface2, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, marginTop: 4 }}>
             <Text variant="subhead" weight="600" selectable>

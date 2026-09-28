@@ -26,11 +26,10 @@ function ProductCardInner({ product, width }: { product: ProductCardDTO; width?:
   const fitsMine = !!myDevice && product.modelIds.includes(myDevice.id);
   const out = product.stock <= 0;
   return (
-    <Pressable
-      onPress={() => router.push(`/product/${product.slug}`)}
-      accessibilityRole="button"
-      accessibilityLabel={`${product.title}, ${product.condition}, ${product.price / 100} rupees`}
-      style={({ pressed }) => ({
+    // Card and quick-add are siblings (not nested buttons): nested touchables are invalid on web and can
+    // swallow each other's taps on device. The "+" floats over the card's bottom-right corner.
+    <View
+      style={{
         width,
         flex: width ? undefined : 1,
         backgroundColor: colors.surface,
@@ -39,57 +38,66 @@ function ProductCardInner({ product, width }: { product: ProductCardDTO; width?:
         borderWidth: scheme === 'dark' ? 0 : 1,
         borderColor: colors.lineSubtle,
         boxShadow: colors.shadow,
-        transform: [{ scale: pressed ? 0.98 : 1 }],
-      })}>
-      <ProductImage src={product.image} alt={product.title} tint={product.icon} radius={0} aspect={1.1} padding="12%" />
-      <View style={{ padding: 12, gap: 4, flex: 1 }}>
-        <ConditionBadge condition={product.condition} />
-        <Text variant="subhead" weight="600" numberOfLines={2} style={{ marginTop: 2 }}>
-          {product.title}
-        </Text>
-        <Text variant="caption" color="muted" numberOfLines={1}>
-          {shortFits(product)}
-        </Text>
-        {fitsMine && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-            <Ionicons name="checkmark" size={12} color={colors.success} />
-            <Text variant="caption" color="success" numberOfLines={1} style={{ flex: 1 }}>
-              Fits your {myDevice!.name}
-            </Text>
+      }}>
+      <Pressable
+        onPress={() => router.push(`/product/${product.slug}`)}
+        accessibilityRole="button"
+        accessibilityLabel={`${product.title}, ${product.condition}, ${product.price / 100} rupees`}
+        style={({ pressed }) => ({ flex: 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+        <ProductImage src={product.image} alt={product.title} tint={product.icon} radius={0} aspect={1.1} padding="12%" />
+        <View style={{ padding: 12, gap: 4, flex: 1 }}>
+          <ConditionBadge condition={product.condition} />
+          <Text variant="subhead" weight="600" numberOfLines={2} style={{ marginTop: 2 }}>
+            {product.title}
+          </Text>
+          <Text variant="caption" color="muted" numberOfLines={1}>
+            {shortFits(product)}
+          </Text>
+          {fitsMine && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <Ionicons name="checkmark" size={12} color={colors.success} />
+              <Text variant="caption" color="success" numberOfLines={1} style={{ flex: 1 }}>
+                Fits your {myDevice!.name}
+              </Text>
+            </View>
+          )}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 6 }}>
+            {out ? (
+              <Text variant="footnote" color="muted" weight="600">
+                Out of stock
+              </Text>
+            ) : (
+              <Price price={product.price} mrp={product.mrp} size="md" />
+            )}
+            {!out && <View style={{ width: 34, height: 34 }} />}
           </View>
-        )}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 6 }}>
-          {out ? (
-            <Text variant="footnote" color="muted" weight="600">
-              Out of stock
-            </Text>
-          ) : (
-            <Price price={product.price} mrp={product.mrp} size="md" />
-          )}
-          {!out && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={inBag ? `Add another ${product.title} to bag, ${inBag} in bag` : `Add ${product.title} to bag`}
-              hitSlop={8}
-              onPress={() => {
-                haptic();
-                add(product);
-              }}
-              style={({ pressed }) => ({
-                width: 34,
-                height: 34,
-                borderRadius: 17,
-                backgroundColor: inBag ? colors.success : colors.accent,
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed ? 0.8 : 1,
-              })}>
-              <Ionicons name={inBag ? 'checkmark' : 'add'} size={20} color="#fff" />
-            </Pressable>
-          )}
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+      {!out && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={inBag ? `Add another ${product.title} to bag, ${inBag} in bag` : `Add ${product.title} to bag`}
+          hitSlop={8}
+          onPress={() => {
+            haptic();
+            add(product);
+          }}
+          style={({ pressed }) => ({
+            position: 'absolute',
+            right: 12,
+            bottom: 12,
+            width: 34,
+            height: 34,
+            borderRadius: 17,
+            backgroundColor: inBag ? colors.success : colors.accent,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pressed ? 0.8 : 1,
+          })}>
+          <Ionicons name={inBag ? 'checkmark' : 'add'} size={20} color="#fff" />
+        </Pressable>
+      )}
+    </View>
   );
 }
 
