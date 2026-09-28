@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useNavigation } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, View } from 'react-native';
 
@@ -67,6 +67,30 @@ export default function Checkout() {
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  // 3-step wizard (Contact → Address → Payment), as in the design. Back gesture / button steps back
+  // instead of leaving checkout; forward moves are validated per step.
+  const [step, setStepRaw] = useState<1 | 2 | 3>(1);
+  const stepRef = useRef(step);
+  const setStep = (n: 1 | 2 | 3) => {
+    stepRef.current = n;
+    setStepRaw(n);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  };
+  const navigation = useNavigation();
+  useEffect(
+    () =>
+      navigation.addListener('beforeRemove', (e) => {
+        const t = e.data.action.type;
+        if (stepRef.current > 1 && (t === 'GO_BACK' || t === 'POP')) {
+          e.preventDefault();
+          const back = (stepRef.current - 1) as 1 | 2;
+          stepRef.current = back;
+          setStepRaw(back);
+        }
+      }),
+    [navigation],
+  );
 
   // Prefill from last checkout.
   useEffect(() => {
@@ -158,7 +182,7 @@ export default function Checkout() {
     setErrors(errs);
     if (Object.keys(errs).length) {
       setPlaceError('Please check the highlighted fields.');
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      setStep(stepFor(errs));
       return;
     }
     setPlacing(true);
@@ -179,6 +203,7 @@ export default function Checkout() {
       } else if (e instanceof ApiError && e.fields) {
         setErrors(e.fields);
       }
+      if (e instanceof ApiError && (e.status === 401 || e.fields)) setStep(e.status === 401 ? 1 : stepFor(e.fields ?? {}));
       setPlaceError(errorMessage(e));
     } finally {
       setPlacing(false);
@@ -187,19 +212,49 @@ export default function Checkout() {
 
   const ctaTitle = !q ? 'Place order' : method === 'COD' ? `Place order · ${formatINR(q.total)}` : `Pay ${formatINR(q.total)} securely`;
 
+  const next = () => {
+    setPlaceError(null);
+    const errs: Record<string, string> = {};
+    if (step === 1) {
+      if (d.name.trim().length < 2) errs.name = 'Enter your full name';
+      if (!verified) errs.phone = 'Verify your mobile number to continue';
+      if (d.email && !/^\S+@\S+\.\S+$/.test(d.email)) errs.email = 'Enter a valid email or leave it blank';
+    } else {
+      if (!pinValid) errs['address.pincode'] = 'Enter a 6-digit pincode';
+      else if (areaErr) errs['address.pincode'] = areaErr;
+      else if (!area?.serviceable) errs['address.pincode'] = 'Checking this pincode…';
+      if (d.city.trim().length < 2) errs['address.city'] = 'Enter the city';
+      if (d.state.trim().length < 2) errs['address.state'] = 'Enter the state';
+      if (d.line1.trim().length < 3) errs['address.line1'] = 'Enter flat / house / building';
+      if (d.line2.trim().length < 3) errs['address.line2'] = 'Enter area / street';
+    }
+    setErrors(errs);
+    if (!Object.keys(errs).length) setStep(step === 1 ? 2 : 3);
+  };
+  const itemCount = items.reduce((a, i) => a + i.qty, 0);
+
   return (
     <>
       <Stack.Screen options={{ title: 'Checkout' }} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}>
         <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 32, maxWidth: 720, width: '100%', alignSelf: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-            <Ionicons name="lock-closed" size={13} color={colors.muted} />
-            <Text variant="caption" color="muted">
-              Secure checkout · No account needed
+          <Progress step={step} onJump={(n) => n < step && setStep(n)} />
+          {step > 1 && verified && (
+            <Pressable onPress={() => setStep(1)} accessibilityRole="button" accessibilityLabel="Edit contact details">
+              <Notice tone="success" icon="checkmark">{`${d.name.trim() || 'You'} · ${formatPhone(phone)} · verified`}</Notice>
+            </Pressable>
+          )}
+          <Text variant="title2" accessibilityRole="header">
+            {step === 1 ? 'Who’s this order for?' : step === 2 ? 'Where should we deliver?' : 'How would you like to pay?'}
+          </Text>
+          {step === 1 && (
+            <Text variant="subhead" color="muted" style={{ marginTop: -8 }}>
+              We’ll send order updates to this number. No password, no account.
             </Text>
-          </View>
+          )}
 
           {/* 1. Contact */}
+          {step === 1 && (
           <Step n={1} title="Contact" done={verified && d.name.trim().length >= 2}>
             <Input label="Full name" value={d.name} onChangeText={(t) => set('name', t)} autoComplete="name" textContentType="name" autoCapitalize="words" error={errors.name} placeholder="Rahul Sharma" />
             <PhoneVerify
@@ -228,8 +283,10 @@ export default function Checkout() {
               <Text variant="subhead">Send order updates on WhatsApp</Text>
             </Pressable>
           </Step>
+          )}
 
           {/* 2. Address */}
+          {step === 2 && (
           <Step n={2} title="Delivery address" done={!!area?.serviceable && d.line1.length >= 3 && d.line2.length >= 3}>
             <Input
               label="Pincode"
@@ -279,8 +336,10 @@ export default function Checkout() {
             </View>
             {gst && <Input label="GSTIN" value={gstin} onChangeText={(t) => setGstin(t.toUpperCase())} autoCapitalize="characters" maxLength={15} error={errors.gstin} placeholder="29ABCDE1234F1Z5" />}
           </Step>
+          )}
 
           {/* 3. Payment */}
+          {step === 3 && (
           <Step n={3} title="Payment" done={false}>
             <View style={{ gap: 10 }} accessibilityRole="radiogroup">
               {METHODS.filter((m) => m.value === 'COD' || config.onlinePaymentsEnabled).map((m) => {
@@ -340,8 +399,10 @@ export default function Checkout() {
               <Notice tone="info">COD orders are confirmed by a quick call/WhatsApp from our team before dispatch.</Notice>
             )}
           </Step>
+          )}
 
-          {/* Summary */}
+          {/* Summary (payment step) */}
+          {step === 3 && (
           <Card tone="muted" style={{ gap: 12 }}>
             <Text variant="title3">Your order</Text>
             {cart.lines.map((l) => (
@@ -378,8 +439,9 @@ export default function Checkout() {
               <Skeleton height={80} />
             )}
           </Card>
+          )}
 
-          {[
+          {step === 3 && [
             { i: 'shield-checkmark-outline' as const, t: 'Warranty on every part' },
             { i: 'refresh-outline' as const, t: '7-day returns if it doesn’t fit' },
             { i: 'lock-closed' as const, t: 'Payments secured by Razorpay' },
@@ -394,37 +456,35 @@ export default function Checkout() {
         </ScrollView>
         <BottomBar>
           {placeError && <Notice tone="danger">{placeError}</Notice>}
-          <Button title={ctaTitle} icon="lock-closed" size="lg" full loading={placing} disabled={!q} onPress={place} />
-          <Text variant="caption" color="muted" center>
-            By placing the order you agree to our Terms of Sale & Returns Policy.
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <View>
+              <Text variant="headline">{q ? formatINR(q.total) : '—'}</Text>
+              <Text variant="caption" color="muted">
+                {step === 3 && method === 'COD' ? 'Cash on Delivery' : `${itemCount} item${itemCount === 1 ? '' : 's'}`}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              {step < 3 ? (
+                <Button title={step === 1 ? 'Continue' : 'Continue to payment'} size="lg" full onPress={next} />
+              ) : (
+                <Button title={method === 'COD' ? 'Place order' : ctaTitle} icon="lock-closed" size="lg" full loading={placing} disabled={!q} onPress={place} />
+              )}
+            </View>
+          </View>
+          {step === 3 && (
+            <Text variant="caption" color="muted" center>
+              By placing the order you agree to our Terms of Sale & Returns Policy.
+            </Text>
+          )}
         </BottomBar>
       </KeyboardAvoidingView>
     </>
   );
 }
 
-function Step({ n, title, done, children }: { n: number; title: string; done: boolean; children: ReactNode }) {
-  const { colors } = useTheme();
-  return (
-    <Card style={{ gap: 14 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: done ? colors.success : colors.inverse, alignItems: 'center', justifyContent: 'center' }}>
-          {done ? (
-            <Ionicons name="checkmark" size={16} color="#fff" />
-          ) : (
-            <Text variant="footnote" color="onInverse" weight="700">
-              {n}
-            </Text>
-          )}
-        </View>
-        <Text variant="title3" accessibilityRole="header">
-          {title}
-        </Text>
-      </View>
-      {children}
-    </Card>
-  );
+/** One wizard step's card. The step's heading and progress live above it. */
+function Step({ children }: { n: number; title: string; done: boolean; children: ReactNode }) {
+  return <Card style={{ gap: 14 }}>{children}</Card>;
 }
 
 function PhoneVerify({
@@ -548,6 +608,34 @@ function PhoneVerify({
           </View>
         </View>
       )}
+    </View>
+  );
+}
+
+/** Which wizard step a field error belongs to. */
+function stepFor(errs: Record<string, string>): 1 | 2 | 3 {
+  const keys = Object.keys(errs);
+  if (keys.some((k) => ['name', 'phone', 'email'].includes(k))) return 1;
+  if (keys.some((k) => k.startsWith('address') || k === 'gstin')) return 2;
+  return 3;
+}
+
+/** Contact · Address · Payment progress bar; finished steps are tappable to go back. */
+function Progress({ step, onJump }: { step: 1 | 2 | 3; onJump: (n: 1 | 2 | 3) => void }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', gap: 6 }} accessibilityRole="progressbar" accessibilityValue={{ min: 1, max: 3, now: step }}>
+      {(['Contact', 'Address', 'Payment'] as const).map((label, i) => {
+        const n = (i + 1) as 1 | 2 | 3;
+        return (
+          <Pressable key={label} style={{ flex: 1, gap: 6 }} onPress={() => onJump(n)} disabled={n >= step} accessibilityRole="button" accessibilityLabel={`${label} step${n < step ? ', done — edit' : n === step ? ', current' : ''}`}>
+            <View style={{ height: 4, borderRadius: 2, backgroundColor: n <= step ? colors.accent : colors.line }} />
+            <Text variant="caption" weight={n === step ? '600' : '400'} color={n <= step ? 'fg' : 'subtle'}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
