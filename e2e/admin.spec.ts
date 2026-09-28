@@ -62,3 +62,59 @@ test('customers & leads: one header, three tabs, top customers', async ({ page }
   await expect(rows.first()).toBeVisible();
   for (const r of await rows.all()) await expect(r).toContainText('B2B');
 });
+
+test('offers: live campaign card, and a new coupon is created from the side panel', async ({ page, request }) => {
+  await adminLogin(page);
+  await page.goto('/admin/offers');
+  await settled(page);
+  const coupons = await (await request.get(`${API}/api/admin/coupons`, { headers: auth() })).json();
+  const live = coupons.find((c: { state: string; showBanner: boolean }) => c.state === 'ACTIVE' && c.showBanner);
+  if (live) await expect(page.getByTestId('campaign-card')).toContainText(live.code);
+  else await expect(page.getByText('No live campaign')).toBeVisible();
+
+  const code = `E2E${Date.now().toString(36).toUpperCase()}`;
+  await page.getByRole('button', { name: 'New coupon' }).click();
+  const panel = page.getByTestId('coupon-panel');
+  await expect(panel).toBeVisible(); // beside the list, not a modal
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await panel.getByPlaceholder('DIWALI26').fill(code);
+  await page.getByRole('button', { name: 'Create coupon' }).click();
+  await expect(page.getByText(`${code} created`)).toBeVisible();
+  await expect(page.getByRole('row').filter({ hasText: code })).toBeVisible();
+  const created = (await (await request.get(`${API}/api/admin/coupons`, { headers: auth() })).json()).find((c: { code: string }) => c.code === code);
+  await request.put(`${API}/api/admin/coupons/${created.id}`, { headers: auth(), data: { active: false } });
+});
+
+test('settings side menu, catalog columns, reports revenue vs cost', async ({ page }) => {
+  await adminLogin(page);
+  await page.goto('/admin/settings');
+  await settled(page);
+  const menu = page.getByRole('navigation', { name: 'Settings sections' });
+  await menu.getByRole('tab', { name: 'Staff & roles' }).click();
+  await expect(page.getByRole('button', { name: 'Add staff' })).toBeVisible();
+
+  await page.goto('/admin/catalog');
+  await settled(page);
+  const cols = page.getByTestId('catalog-columns');
+  await cols.getByRole('navigation', { name: 'Device families' }).getByRole('button', { name: /MacBook Pro/ }).click();
+  await expect(cols.getByRole('heading', { name: /MacBook Pro · \d+ models/ })).toBeVisible();
+  await expect(cols.getByRole('heading', { name: 'Part categories' })).toBeVisible();
+
+  await page.goto('/admin/reports');
+  await settled(page);
+  await expect(page.getByRole('heading', { name: 'Revenue vs cost of goods' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Profit by category' })).toBeVisible();
+});
+
+test('order detail: COD orders show the confirm-with-customer banner', async ({ page, request }) => {
+  const list = await (await request.get(`${API}/api/admin/orders?status=NEW&pageSize=50`, { headers: auth() })).json();
+  const cod = list.items.find((o: { paymentMethod: string }) => o.paymentMethod === 'COD');
+  test.skip(!cod, 'no new COD order');
+  await adminLogin(page);
+  await page.goto(`/admin/orders/${cod.id}`);
+  await settled(page);
+  const banner = page.getByTestId('cod-confirm');
+  await expect(banner).toContainText('Cash on Delivery order');
+  await expect(banner.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', /wa\.me\/91\d{10}\?text=.*Cash%20on%20Delivery/);
+  await expect(banner.getByRole('link', { name: 'Call' })).toHaveAttribute('href', /^tel:\+91\d{10}$/);
+});

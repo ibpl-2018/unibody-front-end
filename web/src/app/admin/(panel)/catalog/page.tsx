@@ -1,10 +1,11 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { CategoryDTO, DeviceFamilyDTO, DeviceModelDTO, FamilyIcon } from '@unibody/shared';
 import { Badge, Button, Checkbox, EmptyState, Field, Input, Modal, Select, Switch } from '@/components/ui';
 import { useToast } from '@/components/ui/toast';
-import { DataTable, ErrorState, FilterSelect, FormGrid, LineTabs, PageHeader, SearchInput, Thumb, useConfirm, type Column } from '@/components/admin/ui';
+import { DataTable, ErrorState, FilterSelect, FormGrid, LineTabs, PageHeader, Panel, SearchInput, Thumb, useConfirm, type Column } from '@/components/admin/ui';
+import { cn } from '@/lib/cn';
 import { adminApi, errMsg, fieldErrors, useApi } from '@/lib/admin/api';
 import { invalidateCatalogCache } from '@/lib/admin/catalog';
 import { useAdmin } from '@/lib/admin/session';
@@ -36,25 +37,43 @@ export default function CatalogPage() {
         subtitle="The device tree customers browse by, and the part categories. A-numbers power “Will it fit?”."
         actions={
           editable && (
-            <Button onClick={() => setModal({ kind: tab })}>
-              <Plus className="size-4" />
-              {tab === 'families' ? 'Add family' : tab === 'models' ? 'Add model' : 'Add category'}
-            </Button>
+            <>
+              <Button className="xl:hidden" onClick={() => setModal({ kind: tab })}>
+                <Plus className="size-4" />
+                {tab === 'families' ? 'Add family' : tab === 'models' ? 'Add model' : 'Add category'}
+              </Button>
+              <Button className="hidden xl:inline-flex" onClick={() => setModal({ kind: 'models' })}>
+                <Plus className="size-4" />
+                Add model
+              </Button>
+            </>
           )
         }
       />
-      <LineTabs
-        value={tab}
-        onChange={setTab}
-        tabs={[
-          { value: 'models', label: `Models${models.data ? ` · ${models.data.length}` : ''}` },
-          { value: 'families', label: `Device families${fams.data ? ` · ${fams.data.length}` : ''}` },
-          { value: 'categories', label: `Categories${cats.data ? ` · ${cats.data.length}` : ''}` },
-        ]}
+      {/* Wide screens: families | models | categories side by side (A13). Narrower: tabs. */}
+      <CatalogColumns
+        fams={fams}
+        models={models}
+        cats={cats}
+        editable={editable}
+        onEdit={(kind, item) => setModal({ kind, item })}
+        onAdd={(kind) => setModal({ kind })}
+        onChanged={refresh}
       />
-      {tab === 'families' && <Families state={fams} editable={editable} onEdit={(item) => setModal({ kind: 'families', item })} onChanged={refresh} />}
-      {tab === 'models' && <Models state={models} families={fams.data ?? []} editable={editable} onEdit={(item) => setModal({ kind: 'models', item })} onChanged={refresh} />}
-      {tab === 'categories' && <Categories state={cats} editable={editable} onEdit={(item) => setModal({ kind: 'categories', item })} onChanged={refresh} />}
+      <div className="xl:hidden">
+        <LineTabs
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { value: 'models', label: `Models${models.data ? ` · ${models.data.length}` : ''}` },
+            { value: 'families', label: `Device families${fams.data ? ` · ${fams.data.length}` : ''}` },
+            { value: 'categories', label: `Categories${cats.data ? ` · ${cats.data.length}` : ''}` },
+          ]}
+        />
+        {tab === 'families' && <Families state={fams} editable={editable} onEdit={(item) => setModal({ kind: 'families', item })} onChanged={refresh} />}
+        {tab === 'models' && <Models state={models} families={fams.data ?? []} editable={editable} onEdit={(item) => setModal({ kind: 'models', item })} onChanged={refresh} />}
+        {tab === 'categories' && <Categories state={cats} editable={editable} onEdit={(item) => setModal({ kind: 'categories', item })} onChanged={refresh} />}
+      </div>
 
       {modal?.kind === 'families' && <FamilyModal item={modal.item as DeviceFamilyDTO | undefined} onClose={() => setModal(null)} onSaved={refresh} />}
       {modal?.kind === 'models' && <ModelModal item={modal.item as DeviceModelDTO | undefined} families={fams.data ?? []} onClose={() => setModal(null)} onSaved={refresh} />}
@@ -64,6 +83,148 @@ export default function CatalogPage() {
 }
 
 type St<T> = { data: T[] | undefined; error: string | null; loading: boolean; refetch: () => Promise<void> };
+
+function CatalogColumns({
+  fams,
+  models,
+  cats,
+  editable,
+  onEdit,
+  onAdd,
+  onChanged,
+}: {
+  fams: St<DeviceFamilyDTO>;
+  models: St<DeviceModelDTO>;
+  cats: St<CategoryDTO>;
+  editable: boolean;
+  onEdit: (kind: Tab, item: DeviceFamilyDTO | DeviceModelDTO | CategoryDTO) => void;
+  onAdd: (kind: Tab) => void;
+  onChanged: () => void;
+}) {
+  const toast = useToast();
+  const families = useMemo(() => (fams.data ? [...fams.data].sort((a, b) => a.sortOrder - b.sortOrder) : undefined), [fams.data]);
+  const [picked, setPicked] = useState<string | null>(null);
+  const famId = picked ?? families?.[0]?.id ?? null;
+  const fam = families?.find((f) => f.id === famId);
+  const [q, setQ] = useState('');
+  const rows = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return models.data
+      ?.filter((m) => m.familyId === famId && (!t || m.fullName.toLowerCase().includes(t) || m.yearLabel.includes(t) || m.aNumbers.some((a) => a.toLowerCase().includes(t))))
+      .sort((a, b) => b.yearFrom - a.yearFrom);
+  }, [models.data, famId, q]);
+  const byId = new Map(cats.data?.map((c) => [c.id, c]));
+  const catList = cats.data && [...cats.data].sort((a, b) => a.sortOrder - b.sortOrder);
+  const toggleCat = async (c: CategoryDTO, active: boolean) => {
+    try {
+      await adminApi.admin.updateCategory(c.id, { active });
+      toast(active ? `${c.name} is visible` : `${c.name} hidden`);
+      onChanged();
+    } catch (e) {
+      toast(errMsg(e), 'error');
+    }
+  };
+  const cols: Column<DeviceModelDTO>[] = [
+    {
+      key: 'name',
+      header: 'Model',
+      cell: (m) => (
+        <span className="whitespace-nowrap">
+          <span className="font-medium">{m.name}</span> <span className="text-muted">{m.yearLabel}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'a',
+      header: 'A-number',
+      cell: (m) => (
+        <span className="flex flex-wrap gap-1">
+          {m.aNumbers.map((a) => (
+            <span key={a} className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] font-semibold">
+              {a}
+            </span>
+          ))}
+        </span>
+      ),
+    },
+    { key: 'emc', header: 'EMC', cell: (m) => <span className="font-mono text-xs text-muted">{m.emc ?? '—'}</span> },
+    { key: 'chip', header: 'Chip', cell: (m) => <span className="whitespace-nowrap text-[13px]">{m.chip ?? '—'}</span> },
+    { key: 'p', header: 'Products', align: 'right', cell: (m) => <span className="tabular-nums">{m.productCount ?? 0}</span> },
+    { key: 'edit', header: '', align: 'right', cell: (m) => editable && <EditBtn onClick={() => onEdit('models', m)} /> },
+  ];
+  if (fams.error && !fams.data) return <ErrorState className="hidden xl:block" message={fams.error} onRetry={fams.refetch} />;
+  return (
+    <div className="hidden items-start gap-5 xl:grid xl:grid-cols-[230px_minmax(0,1fr)_300px]" data-testid="catalog-columns">
+      <nav aria-label="Device families">
+        <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted">Device families</p>
+        <ul className="space-y-1.5">
+          {families?.map((f) => (
+            <li key={f.id} className="group relative">
+              <button
+                type="button"
+                onClick={() => setPicked(f.id)}
+                aria-current={f.id === famId || undefined}
+                className={cn('flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition', f.id === famId ? 'border-accent bg-accent-soft/40' : 'border-transparent hover:bg-surface-2', !f.active && 'opacity-60')}>
+                <Thumb icon={f.icon === 'imac' ? 'display' : f.icon === 'accessory' ? 'cable' : 'laptop'} alt="" src={null} />
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-sm font-medium">{f.name}</span>
+                  <span className="block text-xs text-muted">
+                    {f.modelCount} models · {f.productCount} products{f.active ? '' : ' · hidden'}
+                  </span>
+                </span>
+                <ChevronRight className="size-4 text-subtle" />
+              </button>
+              {editable && (
+                <span className="absolute right-8 top-1/2 hidden -translate-y-1/2 group-hover:block">
+                  <EditBtn onClick={() => onEdit('families', f)} />
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+        {editable && (
+          <Button variant="ghost" size="sm" className="mt-2" onClick={() => onAdd('families')}>
+            <Plus className="size-4" />
+            Add family
+          </Button>
+        )}
+      </nav>
+      <section className="min-w-0" aria-label={fam ? `${fam.name} models` : 'Models'}>
+        <div className="mb-3 flex items-center gap-3">
+          <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{fam ? `${fam.name} · ${rows?.length ?? 0} models` : 'Models'}</h2>
+          <SearchInput value={q} onChange={setQ} placeholder="Filter by A-number or year" className="w-56" />
+        </div>
+        {models.error && !models.data ? (
+          <ErrorState message={models.error} onRetry={models.refetch} />
+        ) : (
+          <DataTable columns={cols} rows={rows} loading={models.loading} rowKey={(m) => m.id} dense empty={<EmptyState title={q ? 'No models match' : 'No models in this family yet'} />} />
+        )}
+      </section>
+      <Panel
+        title="Part categories"
+        action={
+          editable && (
+            <button type="button" aria-label="Add category" onClick={() => onAdd('categories')} className="rounded-full p-1.5 text-link hover:bg-surface-2">
+              <Plus className="size-4" />
+            </button>
+          )
+        }>
+        <p className="-mt-2 mb-3 text-xs text-muted">Shared across all devices. Hidden categories disappear from the store.</p>
+        <ul className="divide-y divide-line-subtle">
+          {catList?.map((c) => (
+            <li key={c.id} className="flex items-center gap-2 py-2">
+              <button type="button" disabled={!editable} onClick={() => onEdit('categories', c)} className="min-w-0 flex-1 truncate text-left text-[13px] hover:text-accent disabled:hover:text-fg">
+                {c.parentId ? <span className="text-muted">{byId.get(c.parentId)?.name} › </span> : null}
+                {c.name}
+              </button>
+              <Switch checked={c.active} onChange={(v) => toggleCat(c, v)} disabled={!editable} label={`Show ${c.name}`} />
+            </li>
+          ))}
+        </ul>
+      </Panel>
+    </div>
+  );
+}
 
 function EditBtn({ onClick }: { onClick: () => void }) {
   return (

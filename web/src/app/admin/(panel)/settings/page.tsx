@@ -35,29 +35,50 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader title="Settings" subtitle={editable ? 'Changes apply to the store immediately.' : view ? 'Only the owner can change settings.' : 'Personal preferences for this device.'} />
-      <LineTabs value={tab} onChange={setTab} tabs={tabs} />
-      {view && !editable && tab !== 'appearance' && (
-        <p className="mb-5 inline-flex items-center gap-2 rounded-xl bg-surface-2 px-3.5 py-2.5 text-sm text-muted">
-          <Lock className="size-4" />
-          View only — ask the owner to change these.
-        </p>
-      )}
-      {(tab === 'store' || tab === 'pricing' || tab === 'messaging') &&
-        (settings.error && !settings.data ? (
-          <ErrorState message={settings.error} onRetry={settings.refetch} />
-        ) : !settings.data ? (
-          <Skeleton className="h-96" />
-        ) : (
-          <SettingsForm key={tab} tab={tab} s={settings.data} editable={editable} onSaved={(d) => settings.setData(d)} />
-        ))}
-      {tab === 'areas' && <ServiceAreas editable={editable} />}
-      {tab === 'staff' && <Staff />}
-      {tab === 'appearance' && (
-        <Panel title="Appearance" className="max-w-2xl">
-          <p className="mb-4 text-sm text-muted">Choose how the admin looks on this device. Auto follows your system setting.</p>
-          <ThemeToggle withAuto />
-        </Panel>
-      )}
+      {/* Phones: tabs across the top. Wide screens: a side menu (A12). */}
+      <LineTabs className="lg:hidden" value={tab} onChange={setTab} tabs={tabs} />
+      <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start lg:gap-8">
+        <nav className="sticky top-20 hidden lg:block" aria-label="Settings sections">
+          <ul className="space-y-0.5" role="tablist" aria-orientation="vertical">
+            {tabs.map((t) => (
+              <li key={t.value}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === t.value}
+                  onClick={() => setTab(t.value)}
+                  className={cn('w-full rounded-xl px-3 py-2 text-left text-sm transition', tab === t.value ? 'bg-surface-2 font-semibold text-fg' : 'text-muted hover:bg-surface-2/60 hover:text-fg')}>
+                  {t.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="min-w-0">
+          {view && !editable && tab !== 'appearance' && (
+            <p className="mb-5 inline-flex items-center gap-2 rounded-xl bg-surface-2 px-3.5 py-2.5 text-sm text-muted">
+              <Lock className="size-4" />
+              View only — ask the owner to change these.
+            </p>
+          )}
+          {(tab === 'store' || tab === 'pricing' || tab === 'messaging') &&
+            (settings.error && !settings.data ? (
+              <ErrorState message={settings.error} onRetry={settings.refetch} />
+            ) : !settings.data ? (
+              <Skeleton className="h-96" />
+            ) : (
+              <SettingsForm key={tab} tab={tab} s={settings.data} editable={editable} onSaved={(d) => settings.setData(d)} />
+            ))}
+          {tab === 'areas' && <ServiceAreas editable={editable} />}
+          {tab === 'staff' && <Staff />}
+          {tab === 'appearance' && (
+            <Panel title="Appearance" className="max-w-2xl">
+              <p className="mb-4 text-sm text-muted">Choose how the admin looks on this device. Auto follows your system setting.</p>
+              <ThemeToggle withAuto />
+            </Panel>
+          )}
+        </div>
+      </div>
     </>
   );
 }

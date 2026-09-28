@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { Pencil, Plus, Tag, TicketPercent } from 'lucide-react';
+import { Gift, Pause, Pencil, Tag, TicketPercent, X } from 'lucide-react';
 import { COUPON_TYPES, formatINR, type CouponDTO, type CouponInput, type CouponType } from '@unibody/shared';
 import { Badge, Button, Checkbox, EmptyState, Field, Input, Modal, Segmented, Switch, Textarea } from '@/components/ui';
 import { useToast } from '@/components/ui/toast';
-import { DataTable, ErrorState, FormGrid, MoneyInput, PageHeader, PillTabs, type Column } from '@/components/admin/ui';
+import { DataTable, ErrorState, FormGrid, MoneyInput, PageHeader, Panel, PillTabs, type Column } from '@/components/admin/ui';
 import { CouponStateBadge } from '@/components/admin/badges';
 import { NoAccess } from '@/components/admin/no-access';
 import { adminApi, errMsg, fieldErrors, inputToPaise, paiseToInput, useApi } from '@/lib/admin/api';
@@ -31,10 +31,27 @@ export default function OffersPage() {
   const allowed = can('coupons');
   const { data, error, loading, refetch } = useApi(() => adminApi.admin.coupons(), [], { enabled: allowed });
   const [filter, setFilter] = useState<Filter>('ALL');
-  const [modal, setModal] = useState<{ item?: CouponDTO } | null>(null);
+  const [modal, setModal] = useState<{ item?: CouponDTO; campaign?: boolean } | null>(null);
+  const [wide, setWide] = useState(false);
   useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1280px)');
+    const on = () => setWide(mq.matches);
+    on();
+    mq.addEventListener('change', on);
     if (new URLSearchParams(window.location.search).get('new') === '1') setModal({});
+    return () => mq.removeEventListener('change', on);
   }, []);
+  const toast = useToast();
+  const live = data?.find((c) => c.state === 'ACTIVE' && c.showBanner);
+  const pause = async (c: CouponDTO) => {
+    try {
+      await adminApi.admin.updateCoupon(c.id, { active: false });
+      toast(`${c.code} paused — banner hidden`);
+      void refetch();
+    } catch (e) {
+      toast(errMsg(e), 'error');
+    }
+  };
   const rows = useMemo(() => data?.filter((c) => filter === 'ALL' || c.state === filter), [data, filter]);
   const count = (s: Filter) => data?.filter((c) => s === 'ALL' || c.state === s).length;
   if (!allowed) return <NoAccess what="offers" />;
@@ -106,12 +123,21 @@ export default function OffersPage() {
         title="Offers & Coupons"
         subtitle="Festive codes, first-order offers and the store-wide banner."
         actions={
-          <Button onClick={() => setModal({})}>
-            <Plus className="size-4" />
-            New coupon
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setModal({})}>
+              <Tag className="size-4" />
+              New coupon
+            </Button>
+            <Button onClick={() => setModal({ campaign: true })}>
+              <Gift className="size-4" />
+              New campaign
+            </Button>
+          </>
         }
       />
+      <div className={modal && wide ? 'grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_420px]' : ''}>
+        <div className="min-w-0">
+          <CampaignCard live={live} loading={!data} onEdit={(c) => setModal({ item: c })} onPause={pause} onNew={() => setModal({ campaign: true })} />
       <PillTabs
         className="mb-4"
         value={filter}
@@ -123,12 +149,56 @@ export default function OffersPage() {
       ) : (
         <DataTable columns={cols} rows={rows} loading={loading} rowKey={(c) => c.id} onRowClick={(c) => setModal({ item: c })} empty={<EmptyState icon={<Tag className="size-6" />} title="No coupons here" />} />
       )}
-      {modal && <CouponModal item={modal.item} onClose={() => setModal(null)} onSaved={() => void refetch()} />}
+        </div>
+        {modal && <CouponEditor key={modal.item?.id ?? (modal.campaign ? 'campaign' : 'new')} item={modal.item} preset={modal} inline={wide} onClose={() => setModal(null)} onSaved={() => void refetch()} />}
+      </div>
     </>
   );
 }
 
-function CouponModal({ item, onClose, onSaved }: { item?: CouponDTO; onClose: () => void; onSaved: () => void }) {
+/** New / edit coupon. `inline` renders it as the side panel beside the list (A10); otherwise a modal (narrow screens). */
+/** The live store-banner campaign (A10), or a prompt to start one. */
+function CampaignCard({ live, loading, onEdit, onPause, onNew }: { live?: CouponDTO; loading: boolean; onEdit: (c: CouponDTO) => void; onPause: (c: CouponDTO) => void; onNew: () => void }) {
+  if (loading) return <div className="mb-5 h-[124px] animate-pulse rounded-[var(--radius-card)] bg-surface-2" />;
+  if (!live)
+    return (
+      <div className="mb-5 flex flex-wrap items-center gap-4 rounded-[var(--radius-card)] border border-dashed border-line p-5">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">No live campaign</p>
+          <p className="text-sm text-muted">A campaign is a coupon shown as the banner at the top of the store.</p>
+        </div>
+        <Button variant="outline" onClick={onNew}>
+          <Gift className="size-4" />
+          Start a campaign
+        </Button>
+      </div>
+    );
+  return (
+    <section data-testid="campaign-card" className="mb-5 flex flex-wrap items-center gap-4 rounded-[var(--radius-card)] bg-[#111113] p-6 text-white">
+      <div className="min-w-0 flex-1">
+        <p className="inline-flex items-center gap-1.5 rounded-full bg-[#ff3b30]/15 px-2.5 py-0.5 text-xs font-medium text-[#ff6961]">
+          <Gift className="size-3.5" /> Live campaign{live.endsAt ? ` · ends ${fmtDate(live.endsAt)}` : ''}
+        </p>
+        <h2 className="mt-2 text-[22px] font-semibold tracking-tight">{live.bannerTitle || live.description}</h2>
+        <p className="mt-1 text-sm text-white/65">
+          Home banner · <span className="font-mono">{live.code}</span> · {live.used} order{live.used === 1 ? '' : 's'} · {formatINR(live.discountGiven)} discount given
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="secondary" onClick={() => onEdit(live)} className="bg-white text-[#111113] hover:bg-white/90">
+          <Pencil className="size-4" />
+          Edit
+        </Button>
+        <Button variant="outline" onClick={() => onPause(live)} className="border-white/30 bg-transparent text-white hover:bg-white/10">
+          <Pause className="size-4" />
+          Pause
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function CouponEditor({ item, preset, inline, onClose, onSaved }: { item?: CouponDTO; preset?: { campaign?: boolean }; inline?: boolean; onClose: () => void; onSaved: () => void }) {
   const toast = useToast();
   const [code, setCode] = useState(item?.code ?? '');
   const [description, setDescription] = useState(item?.description ?? '');
@@ -143,7 +213,7 @@ function CouponModal({ item, onClose, onSaved }: { item?: CouponDTO; onClose: ()
   const [startsAt, setStartsAt] = useState(toLocal(item?.startsAt ?? null));
   const [endsAt, setEndsAt] = useState(toLocal(item?.endsAt ?? null));
   const [active, setActive] = useState(item?.active ?? true);
-  const [showBanner, setShowBanner] = useState(item?.showBanner ?? false);
+  const [showBanner, setShowBanner] = useState(item?.showBanner ?? !!preset?.campaign);
   const [bannerTitle, setBannerTitle] = useState(item?.bannerTitle ?? '');
   const [bannerSubtitle, setBannerSubtitle] = useState(item?.bannerSubtitle ?? '');
   const [busy, setBusy] = useState(false);
@@ -195,23 +265,19 @@ function CouponModal({ item, onClose, onSaved }: { item?: CouponDTO; onClose: ()
     }
   }
 
-  return (
-    <Modal
-      open
-      wide
-      onClose={onClose}
-      title={item ? `Edit ${item.code}` : 'New coupon'}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form="coupon" loading={busy}>
-            {item ? 'Save coupon' : 'Create coupon'}
-          </Button>
-        </>
-      }
-    >
+  const title = item ? `Edit ${item.code}` : showBanner ? 'New campaign' : 'New coupon';
+  const actions = (
+    <>
+      <Button variant="secondary" onClick={onClose}>
+        Cancel
+      </Button>
+      <Button type="submit" form="coupon" loading={busy}>
+        {item ? 'Save coupon' : fromLocal(startsAt) && fromLocal(startsAt)! > new Date().toISOString() ? 'Schedule' : 'Create coupon'}
+      </Button>
+    </>
+  );
+  const narrow = !!inline;
+  const form = (
       <form id="coupon" onSubmit={submit} className="space-y-5">
         <FormGrid>
           <Field label="Code" error={errors.code} hint="Customers type this at checkout">
@@ -222,7 +288,7 @@ function CouponModal({ item, onClose, onSaved }: { item?: CouponDTO; onClose: ()
           </Field>
         </FormGrid>
         {type !== 'FREE_COD' && (
-          <FormGrid cols={3}>
+          <FormGrid cols={narrow ? 2 : 3}>
             <Field label={type === 'PERCENT' ? 'Percent off' : 'Amount off'} error={errors.value}>
               {type === 'PERCENT' ? (
                 <div className="relative">
@@ -248,7 +314,7 @@ function CouponModal({ item, onClose, onSaved }: { item?: CouponDTO; onClose: ()
             <MoneyInput value={minOrder} onChange={setMinOrder} placeholder="Any amount" />
           </Field>
         )}
-        <FormGrid cols={4}>
+        <FormGrid cols={narrow ? 2 : 4}>
           <Field label="Total uses" hint="Blank = unlimited">
             <Input value={usageLimit} onChange={(e) => setUsageLimit(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="∞" />
           </Field>
@@ -295,6 +361,27 @@ function CouponModal({ item, onClose, onSaved }: { item?: CouponDTO; onClose: ()
           )}
         </div>
       </form>
+  );
+  return inline ? (
+    <Panel
+      className="xl:sticky xl:top-20"
+      title={
+        <span className="leading-tight">
+          {title}
+          <span className="block text-xs font-normal text-muted">Preview updates live</span>
+        </span>
+      }
+      action={
+        <button type="button" aria-label="Close" onClick={onClose} className="rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-fg">
+          <X className="size-4" />
+        </button>
+      }>
+      <div data-testid="coupon-panel">{form}</div>
+      <div className="mt-5 flex justify-end gap-2 border-t border-line-subtle pt-4">{actions}</div>
+    </Panel>
+  ) : (
+    <Modal open wide onClose={onClose} title={title} footer={actions}>
+      {form}
     </Modal>
   );
 }

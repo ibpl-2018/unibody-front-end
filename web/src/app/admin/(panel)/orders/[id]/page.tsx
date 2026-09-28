@@ -74,6 +74,7 @@ export default function OrderDetailPage() {
   const forward = o.nextStatuses.filter((s) => s !== 'CANCELLED' && s !== 'RETURNED');
   const backward = o.nextStatuses.filter((s) => s === 'CANCELLED' || s === 'RETURNED');
   const trackUrl = `/track?order=${o.orderNo}&phone=${o.phone}`;
+  const codConfirmText = `Hi ${o.customerName.split(' ')[0]}, this is Unibody. Confirming your Cash on Delivery order ${o.orderNo} — ${o.items.map((i) => i.title).join(', ')} — ${formatINR(o.totals.total)} to pay on delivery. Reply YES to confirm and we’ll pack it today.`;
   const waText = `Hi ${o.customerName.split(' ')[0]}, this is Unibody about your order ${o.orderNo} (${formatINR(o.totals.total)}).`;
 
   const changeStatus = async (to: OrderStatus, note?: string) => {
@@ -150,6 +151,26 @@ export default function OrderDetailPage() {
             </li>
           ))}
         </ol>
+      )}
+
+      {/* A03: COD orders are confirmed with the customer before anything is picked. */}
+      {o.paymentMethod === 'COD' && o.status === 'NEW' && (
+        <div data-testid="cod-confirm" className="mb-5 flex flex-col gap-3 rounded-[var(--radius-card)] bg-warning-soft px-5 py-4 sm:flex-row sm:items-center">
+          <Phone className="hidden size-5 shrink-0 text-warning sm:block" />
+          <p className="min-w-0 flex-1 text-sm">
+            <span className="font-semibold">Cash on Delivery order</span> — call or WhatsApp {o.customerName.split(' ')[0]} to confirm before packing ({formatINR(o.totals.total)} to collect).
+          </p>
+          <div className="flex shrink-0 gap-2">
+            <a href={waLink(o.phone, codConfirmText)} target="_blank" rel="noreferrer" className={buttonClass('dark', 'sm')}>
+              <MessageCircle className="size-4" />
+              WhatsApp
+            </a>
+            <a href={telLink(o.phone)} className={buttonClass('outline', 'sm')}>
+              <Phone className="size-4" />
+              Call
+            </a>
+          </div>
+        </div>
       )}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">

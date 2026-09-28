@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Banknote, Boxes, Download, FileSpreadsheet, Landmark, LineChart, Receipt, ShoppingBag, TrendingUp, Truck, Wallet } from 'lucide-react';
 import { fyLabel, formatINR } from '@unibody/shared';
 import { EmptyState, Input, Skeleton } from '@/components/ui';
-import { BarChart } from '@/components/admin/charts';
+import { BarChart, PairBarChart } from '@/components/admin/charts';
 import { DataTable, ErrorState, KpiCard, PageHeader, Panel, type Column } from '@/components/admin/ui';
 import { NoAccess } from '@/components/admin/no-access';
 import { adminApi, daysAgo, inrCompact, isoDay, pct, useApi } from '@/lib/admin/api';
@@ -57,10 +57,11 @@ export default function ReportsPage() {
   const monthly = r?.monthly ?? [];
   const catCols: Column<NonNullable<typeof r>['byCategory'][number]>[] = [
     { key: 'n', header: 'Category', cell: (c) => <span className="whitespace-nowrap font-medium">{c.name}</span> },
-    { key: 'r', header: 'Revenue', align: 'right', cell: (c) => <span className="tabular-nums">{formatINR(c.revenue)}</span> },
+    // Owner sees profit + margin (revenue is in the chart); others see revenue only.
+    ...(owner ? [] : [{ key: 'r', header: 'Revenue', align: 'right' as const, cell: (c: { revenue: number }) => <span className="tabular-nums">{formatINR(c.revenue)}</span> }]),
     ...(owner
       ? [
-          { key: 'p', header: 'Gross profit', align: 'right' as const, cell: (c: { profit: number }) => <span className="tabular-nums">{formatINR(c.profit)}</span> },
+          { key: 'p', header: 'Profit', align: 'right' as const, cell: (c: { profit: number }) => <span className="tabular-nums">{formatINR(c.profit)}</span> },
           { key: 'm', header: 'Margin', align: 'right' as const, cell: (c: { margin: number }) => <span className={cn('tabular-nums', c.margin < 0.2 ? 'text-warning' : 'text-success')}>{pct(c.margin)}</span> },
         ]
       : []),
@@ -117,10 +118,35 @@ export default function ReportsPage() {
           </div>
 
           <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
-            <Panel title="Net sales by month">
+            <Panel title={owner ? 'Revenue vs cost of goods' : 'Net sales by month'}>
               {!r ? (
                 <Skeleton className="h-60" />
-              ) : monthly.length ? (
+              ) : !monthly.length ? (
+                <EmptyState title="No sales in this period" />
+              ) : owner ? (
+                <PairBarChart
+                  height={220}
+                  format={inrCompact}
+                  labels={['Revenue', 'COGS']}
+                  data={monthly.map((m) => ({
+                    key: m.month,
+                    label: monthLabel(m.month),
+                    a: m.revenue,
+                    b: m.cogs,
+                    tooltip: (
+                      <div>
+                        <p className="font-semibold">{monthLabel(m.month)}</p>
+                        <p className="tabular-nums text-muted">
+                          {formatINR(m.revenue)} revenue · {formatINR(m.cogs)} COGS
+                        </p>
+                        <p className="tabular-nums text-success">
+                          {formatINR(m.revenue - m.cogs)} gross profit · {m.orders} orders
+                        </p>
+                      </div>
+                    ),
+                  }))}
+                />
+              ) : (
                 <BarChart
                   height={220}
                   highlightLast={1}
@@ -140,11 +166,9 @@ export default function ReportsPage() {
                     ),
                   }))}
                 />
-              ) : (
-                <EmptyState title="No sales in this period" />
               )}
             </Panel>
-            <Panel title="By category" padded={false}>
+            <Panel title={owner ? 'Profit by category' : 'Sales by category'} padded={false}>
               <DataTable className="rounded-none border-0" columns={catCols} rows={r?.byCategory} loading={!r} rowKey={(c) => c.categoryId} dense skeletonRows={6} empty={<EmptyState title="No sales" />} />
             </Panel>
           </div>

@@ -77,6 +77,67 @@ export function BarChart({ data, height = 220, highlightLast = 7, format, classN
   );
 }
 
+export interface PairDatum {
+  key: string;
+  label: string;
+  a: number;
+  b: number;
+  tooltip: React.ReactNode;
+}
+
+/** Two bars per period (e.g. revenue vs cost of goods, A11) with a legend and hover tooltip. */
+export function PairBarChart({ data, labels, height = 220, format, className }: { data: PairDatum[]; labels: [string, string]; height?: number; format?: (v: number) => string; className?: string }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const max = useMemo(() => Math.max(1, ...data.flatMap((d) => [d.a, d.b])), [data]);
+  const n = data.length;
+  const bar = (v: number) => ({ height: v > 0 ? `max(3px, ${(v / max) * 100}%)` : '2px' });
+  return (
+    <div className={cn('relative select-none', className)} onMouseLeave={() => setHover(null)}>
+      <div className="mb-3 flex justify-end gap-4 text-xs text-muted" aria-hidden>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm bg-[linear-gradient(180deg,#5e5ce6,#0a84ff)]" />
+          {labels[0]}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm bg-[linear-gradient(180deg,#ff9f0a,#ff375f)]" />
+          {labels[1]}
+        </span>
+      </div>
+      <div className="relative" style={{ height }} role="img" aria-label={`${labels[0]} and ${labels[1]} by period`}>
+        {[0.25, 0.5, 0.75, 1].map((t) => (
+          <div key={t} className="pointer-events-none absolute inset-x-0 border-t border-dashed border-line-subtle" style={{ bottom: `${t * 100}%` }}>
+            {format && <span className="absolute -top-2 right-0 text-[10px] leading-none tabular-nums text-subtle">{format(max * t)}</span>}
+          </div>
+        ))}
+        <div className="absolute inset-y-0 left-0 right-10 flex items-end" style={{ gap: n > 20 ? 4 : 12 }}>
+          {data.map((d, i) => (
+            <div key={d.key} className={cn('flex h-full min-w-0 flex-1 items-end justify-center gap-[3px] transition-opacity', hover !== null && hover !== i && 'opacity-50')} onMouseEnter={() => setHover(i)}>
+              <div className="w-full max-w-5 rounded-t-[4px] bg-[linear-gradient(180deg,#5e5ce6,#0a84ff)]" style={bar(d.a)} />
+              <div className="w-full max-w-5 rounded-t-[4px] bg-[linear-gradient(180deg,#ff9f0a,#ff375f)]" style={bar(d.b)} />
+            </div>
+          ))}
+        </div>
+        {hover !== null && data[hover] && (
+          <div className="pointer-events-none absolute inset-y-0 left-0 right-10">
+            <div
+              className="absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-xl border border-line-subtle bg-surface px-3 py-2 text-xs shadow-xl"
+              style={{ left: `${((hover + 0.5) / n) * 100}%`, bottom: `${Math.min(100, (Math.max(data[hover].a, data[hover].b) / max) * 100)}%`, marginBottom: 8 }}>
+              {data[hover].tooltip}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="mr-10 mt-2 flex text-[11px] text-subtle">
+        {data.map((d) => (
+          <span key={d.key} className="min-w-0 flex-1 truncate text-center tabular-nums">
+            {d.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export interface DonutSlice {
   key: string;
   value: number;
