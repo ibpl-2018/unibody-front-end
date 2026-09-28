@@ -18,6 +18,13 @@ export function loadState(): Record<string, string> {
 export const test = base.extend<{ errors: string[] }>({
   errors: [
     async ({ page }, use) => {
+      // The storefront intro plays once per session; mark it seen so it never covers what a test clicks.
+      // (e2e/intro.spec.ts tests the intro itself.)
+      await page.context().addInitScript(() => {
+        try {
+          sessionStorage.setItem('ub-intro', '1');
+        } catch {}
+      });
       const errors: string[] = [];
       page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
       page.on('console', (m) => {

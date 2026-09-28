@@ -1,0 +1,370 @@
+/* Storefront launch intro (see launch-intro.tsx). Timeline mirrors the app:
+   0–0.3s hold · 0.3s squeeze → spring up · 0.42s brackets snap · 0.68s burst · 1.1s letters · 1.75s tagline ·
+   --ub-exit (2.45s, or the moment of a tap) content zooms out + curtains split · gone by ~3.4s. */
+
+#ub-intro {
+  --ub-exit: 2450ms;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  overflow: hidden;
+  color: #fff;
+  font-family: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  /* Ends hidden even without JS, so the page is never blocked. */
+  animation: ub-gone 1ms linear calc(var(--ub-exit) + 1000ms) forwards;
+}
+.ub-intro-seen #ub-intro {
+  display: none;
+}
+@keyframes ub-gone {
+  to {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    display: none; /* animatable in current browsers; JS also removes it on animationend */
+  }
+}
+
+/* ---- curtains: back (pink) → middle (purple) → front (black = the first frame's background) ---- */
+.ub-curtain {
+  position: absolute;
+  inset: 0;
+}
+.ub-half {
+  position: absolute;
+  inset: 0;
+  animation: 620ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--ub-exit) + 90ms + var(--i) * 110ms) forwards;
+}
+.ub-l {
+  animation-name: ub-out-l;
+}
+.ub-r {
+  animation-name: ub-out-r;
+}
+@keyframes ub-out-l {
+  to {
+    transform: translateX(calc(-50% - 30px));
+  }
+}
+@keyframes ub-out-r {
+  to {
+    transform: translateX(calc(50% + 30px));
+  }
+}
+/* Solid first-frame background over the curtain seams until the exit starts. */
+.ub-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: #000;
+  animation: ub-hide 1ms linear var(--ub-exit) forwards;
+}
+@keyframes ub-hide {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ---- content ---- */
+.ub-content {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: ub-content-out 280ms cubic-bezier(0.55, 0, 1, 0.45) var(--ub-exit) forwards;
+}
+@keyframes ub-content-out {
+  to {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+}
+.ub-stage {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  animation: ub-lift 700ms cubic-bezier(0.34, 1.56, 0.64, 1) 480ms both;
+}
+@keyframes ub-lift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-40px);
+  }
+}
+.ub-logo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 22px;
+  background-image: linear-gradient(135deg, #5856d6 0%, #af52de 45%, #ff2d55 100%);
+  box-shadow: 0 10px 40px rgb(175 82 222 / 0.35);
+  animation:
+    ub-alive 900ms linear 300ms both,
+    ub-wobble 1040ms ease-in-out 1000ms infinite alternate;
+}
+.ub-logo svg {
+  width: 52px;
+  height: 52px;
+}
+/* squeeze → overshooting spring to 1.55× */
+@keyframes ub-alive {
+  0% {
+    transform: scale(1);
+  }
+  17% {
+    transform: scale(0.86);
+  }
+  45% {
+    transform: scale(1.72);
+  }
+  62% {
+    transform: scale(1.48);
+  }
+  78% {
+    transform: scale(1.58);
+  }
+  100% {
+    transform: scale(1.55);
+  }
+}
+@keyframes ub-wobble {
+  from {
+    rotate: -2deg;
+  }
+  to {
+    rotate: 2deg;
+  }
+}
+.ub-bracket {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 0 solid #fff;
+  opacity: 0;
+  animation: ub-snap 260ms cubic-bezier(0.36, 0, 0.66, -0.56) 420ms forwards;
+}
+.ub-b0 {
+  left: -7px;
+  top: -7px;
+  border-left-width: 3px;
+  border-top-width: 3px;
+  border-top-left-radius: 9px;
+  --sx: -70px;
+  --sy: -70px;
+}
+.ub-b1 {
+  right: -7px;
+  top: -7px;
+  border-right-width: 3px;
+  border-top-width: 3px;
+  border-top-right-radius: 9px;
+  --sx: 70px;
+  --sy: -70px;
+}
+.ub-b2 {
+  left: -7px;
+  bottom: -7px;
+  border-left-width: 3px;
+  border-bottom-width: 3px;
+  border-bottom-left-radius: 9px;
+  --sx: -70px;
+  --sy: 70px;
+}
+.ub-b3 {
+  right: -7px;
+  bottom: -7px;
+  border-right-width: 3px;
+  border-bottom-width: 3px;
+  border-bottom-right-radius: 9px;
+  --sx: 70px;
+  --sy: 70px;
+}
+@keyframes ub-snap {
+  from {
+    opacity: 0;
+    transform: translate(var(--sx), var(--sy));
+  }
+  15% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+.ub-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 360px;
+  height: 360px;
+  margin: -180px 0 0 -180px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(175 82 222 / 0.6), rgb(94 92 230 / 0.3) 40%, transparent);
+  opacity: 0;
+  animation: ub-glow 900ms cubic-bezier(0.33, 1, 0.68, 1) 420ms forwards;
+}
+@keyframes ub-glow {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  35% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.8;
+    transform: scale(1.2);
+  }
+}
+.ub-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 120px;
+  height: 120px;
+  margin: -60px 0 0 -60px;
+  border: 2px solid #af52de;
+  border-radius: 50%;
+  opacity: 0;
+  animation: ub-ring 1000ms cubic-bezier(0.33, 1, 0.68, 1) calc(460ms + var(--i) * 200ms) forwards;
+}
+@keyframes ub-ring {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  15% {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.1);
+  }
+}
+
+/* ---- burst: screws (rings), chips (squares), paper confetti (slips) ---- */
+.ub-p {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  opacity: 0;
+  animation: ub-burst 1150ms cubic-bezier(0.33, 1, 0.68, 1) 680ms forwards;
+}
+.ub-screw {
+  border: 2px solid var(--c);
+  border-radius: 50%;
+}
+.ub-chip {
+  background: var(--c);
+  border-radius: 2px;
+}
+.ub-paper {
+  width: calc(var(--s) * 0.55);
+  background: var(--c);
+  border-radius: 1px;
+}
+@keyframes ub-burst {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0) scale(0.2);
+  }
+  6% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.8);
+  }
+}
+
+/* ---- wordmark + tagline ---- */
+.ub-word {
+  margin: 78px 0 0;
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.ub-word span {
+  display: inline-block;
+  opacity: 0;
+  animation: ub-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(1100ms + var(--i) * 70ms) forwards;
+}
+@keyframes ub-pop {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.5);
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.ub-tag {
+  margin: 10px 0 0;
+  color: #2997ff;
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0;
+  animation: ub-tag 420ms cubic-bezier(0.33, 1, 0.68, 1) 1750ms forwards;
+}
+@keyframes ub-tag {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- tap to skip: JS sets --ub-exit to "now"; unfinished entrance pieces just fade with the content ---- */
+#ub-intro.ub-skip .ub-content {
+  animation-duration: 200ms;
+}
+
+/* ---- reduced motion: static logo, then a 0.25 s fade ---- */
+@media (prefers-reduced-motion: reduce) {
+  #ub-intro {
+    background: #000;
+    animation: ub-fade 250ms linear 200ms forwards;
+  }
+  #ub-intro * {
+    animation: none !important;
+  }
+  #ub-intro .ub-curtain,
+  #ub-intro .ub-glow,
+  #ub-intro .ub-ring,
+  #ub-intro .ub-p,
+  #ub-intro .ub-bracket,
+  #ub-intro .ub-word,
+  #ub-intro .ub-tag {
+    display: none;
+  }
+  @keyframes ub-fade {
+    to {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      display: none;
+    }
+  }
+}
