@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Boxes, ClipboardCheck, Download, IndianRupee, PackageX, Plus, Printer, ScanBarcode, SlidersHorizontal, Warehouse } from 'lucide-react';
+import { AlertTriangle, Boxes, ChevronRight, ClipboardCheck, Cpu, Download, IndianRupee, PackagePlus, PackageX, Plus, Printer, ScanBarcode, ShoppingBag, SlidersHorizontal, Undo2, Warehouse, XCircle } from 'lucide-react';
 import { CONDITIONS, CONDITION_SHORT, MOVEMENT_TYPES, UNIT_STATUSES, formatINR, isHeld, type Condition, type InventoryRowDTO, type MovementType, type StockMovementDTO, type StockUnitDTO, type UnitStatus } from '@unibody/shared';
-import { Badge, Button, ConditionBadge, EmptyState, Field, Input, Modal, Segmented, Select, buttonClass } from '@/components/ui';
+import { Badge, Button, ConditionBadge, EmptyState, Field, Input, Modal, Segmented, Select, Skeleton, buttonClass } from '@/components/ui';
 import { useToast } from '@/components/ui/toast';
-import { DataTable, ErrorState, FilterSelect, FormGrid, KpiCard, LineTabs, MoneyInput, PageHeader, Pagination, SearchInput, Thumb, type Column } from '@/components/admin/ui';
+import { DataTable, ErrorState, FilterSelect, FormGrid, KpiCard, LineTabs, MoneyInput, PageHeader, Pagination, Panel, SearchInput, Thumb, type Column } from '@/components/admin/ui';
 import { ProductPicker, type PickedProduct } from '@/components/admin/product-picker';
 import { adminApi, errMsg, fieldErrors, inputToPaise, useApi, useDebounced } from '@/lib/admin/api';
 import { useAdmin, useLiveRefetch } from '@/lib/admin/session';
@@ -80,7 +80,18 @@ export function InventoryView({ initial }: { initial: { q: string; state: string
           { value: 'movements', label: 'Movements ledger' },
         ]}
       />
-      {tab === 'stock' && <StockTab initial={initial} version={version} onAdjust={(p) => setAdjust({ product: p })} onUnit={(p) => setUnitModal({ product: p })} />}
+      {tab === 'stock' && (
+        <StockTab
+          initial={initial}
+          version={version}
+          onAdjust={(p) => setAdjust({ product: p })}
+          onUnit={(p) => setUnitModal({ product: p })}
+          onAllMovements={() => {
+            setTab('movements');
+            syncQuery({ tab: 'movements' });
+          }}
+        />
+      )}
       {tab === 'units' && <UnitsTab version={version} />}
       {tab === 'movements' && <MovementsTab version={version} />}
 
@@ -90,7 +101,7 @@ export function InventoryView({ initial }: { initial: { q: string; state: string
   );
 }
 
-function StockTab({ initial, version, onAdjust, onUnit }: { initial: { q: string; state: string }; version: number; onAdjust: (p: PickedProduct) => void; onUnit: (p: PickedProduct) => void }) {
+function StockTab({ initial, version, onAdjust, onUnit, onAllMovements }: { initial: { q: string; state: string }; version: number; onAdjust: (p: PickedProduct) => void; onUnit: (p: PickedProduct) => void; onAllMovements: () => void }) {
   const { can } = useAdmin();
   const owner = can('cost');
   const edit = can('stockEdit');
@@ -194,29 +205,140 @@ function StockTab({ initial, version, onAdjust, onUnit }: { initial: { q: string
           <KpiCard label="Out of stock" color="pink" icon={<PackageX />} loading={!s} value={s?.outOfStock} hint={state === 'OUT' ? 'Showing out-of-stock · tap to clear' : 'Live products you can’t sell · tap to filter'} />
         </button>
       </div>
-      <div className="mb-4 flex flex-wrap gap-2">
-        <SearchInput value={q} onChange={setQ} placeholder="Search title, SKU or bin" className="w-full sm:w-72" />
-        <FilterSelect
-          label="Stock"
-          value={state}
-          onChange={setState}
-          options={[
-            { value: '', label: 'All' },
-            { value: 'OK', label: 'Healthy' },
-            { value: 'LOW', label: 'Low' },
-            { value: 'OUT', label: 'Out' },
-          ]}
-        />
+      <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0">
+          <div className="mb-4 flex flex-wrap gap-2">
+            <SearchInput value={q} onChange={setQ} placeholder="Search title, SKU or bin" className="w-full sm:w-72" />
+            <FilterSelect
+              label="Stock"
+              value={state}
+              onChange={setState}
+              options={[
+                { value: '', label: 'All' },
+                { value: 'OK', label: 'Healthy' },
+                { value: 'LOW', label: 'Low' },
+                { value: 'OUT', label: 'Out' },
+              ]}
+            />
+          </div>
+          {error && !data ? (
+            <ErrorState message={error} onRetry={refetch} />
+          ) : (
+            <>
+              <DataTable columns={cols} rows={data?.items} loading={loading} rowKey={(r) => r.productId} dense empty={<EmptyState icon={<Warehouse className="size-6" />} title="Nothing matches" body="Try a different search or stock filter." />} />
+              {data && <Pagination page={page} pageSize={pageSize} total={data.total} onPage={setPage} />}
+            </>
+          )}
+        </div>
+        {/* Beside the table on very wide screens; above it otherwise, so it never squeezes the table or sinks below 50 rows. */}
+        <aside className="order-first grid items-start gap-5 md:grid-cols-2 2xl:order-none 2xl:grid-cols-1" aria-label="Stock activity">
+          <RecentMovements version={version} onAll={onAllMovements} />
+          {can('purchases') && <ReorderPanel version={version} />}
+        </aside>
       </div>
+    </>
+  );
+}
+
+const MOVE_ICON: Record<MovementType, React.ReactNode> = {
+  PURCHASE: <PackagePlus />,
+  HARVEST: <Cpu />,
+  SALE: <ShoppingBag />,
+  RETURN: <Undo2 />,
+  ADJUSTMENT: <SlidersHorizontal />,
+  CANCEL: <XCircle />,
+  LOSS: <PackageX />,
+};
+const TONE_CHIP: Record<(typeof MOVE_TONE)[MovementType], string> = {
+  success: 'bg-success-soft text-success',
+  info: 'bg-accent-soft text-accent',
+  danger: 'bg-danger-soft text-danger',
+  warning: 'bg-warning-soft text-warning',
+  purple: 'bg-purple-soft text-purple',
+  neutral: 'bg-surface-2 text-muted',
+};
+
+/** Latest stock movements, newest first (the full ledger is the Movements tab). */
+function RecentMovements({ version, onAll }: { version: number; onAll: () => void }) {
+  const { data, error, refetch } = useApi(() => adminApi.admin.movements({ page: 1 }), [version]);
+  useLiveRefetch(refetch);
+  const items = data?.items.slice(0, 5);
+  return (
+    <Panel
+      title="Recent movements"
+      action={
+        <button type="button" onClick={onAll} className="inline-flex items-center gap-0.5 text-[13px] text-link hover:underline">
+          All <ChevronRight className="size-3.5" />
+        </button>
+      }>
       {error && !data ? (
         <ErrorState message={error} onRetry={refetch} />
+      ) : !items ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-10" />
+          ))}
+        </div>
+      ) : !items.length ? (
+        <p className="py-6 text-center text-sm text-muted">No stock movements yet.</p>
+      ) : (
+        <ul className="divide-y divide-line-subtle" data-testid="recent-movements">
+          {items.map((m) => (
+            <li key={m.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+              <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg [&>svg]:size-4', TONE_CHIP[MOVE_TONE[m.type]])}>{MOVE_ICON[m.type]}</span>
+              <div className="min-w-0 flex-1 leading-tight">
+                <p className="truncate text-[13px] font-medium">
+                  {lower(m.type)}
+                  {m.ref ? ` · ${m.ref.startsWith('UB-') ? '#' : ''}${m.ref}` : ''}
+                </p>
+                <p className="truncate text-[11px] text-muted">
+                  {m.productTitle} · {fmtDateTime(m.at)}
+                  {m.by ? ` · ${m.by}` : ''}
+                </p>
+              </div>
+              <span className={cn('text-[13px] font-semibold tabular-nums', m.qty > 0 ? 'text-success' : 'text-danger')}>{m.qty > 0 ? `+${m.qty}` : m.qty}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+/** Parts that run out within 3 weeks at the last-30-day sales rate → one tap to a pre-filled purchase order. */
+function ReorderPanel({ version }: { version: number }) {
+  const { data, error, refetch } = useApi(() => adminApi.admin.reorderSuggestions({ limit: 6 }), [version]);
+  return (
+    <Panel title="Reorder suggestions">
+      <p className="-mt-1 mb-3 text-xs text-muted">Based on the last 30 days of sales</p>
+      {error && !data ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !data ? (
+        <div className="space-y-2.5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-6" />
+          ))}
+        </div>
+      ) : !data.length ? (
+        <p className="rounded-xl bg-success-soft px-3 py-2.5 text-[13px] text-success">Nothing runs out in the next 3 weeks.</p>
       ) : (
         <>
-          <DataTable columns={cols} rows={data?.items} loading={loading} rowKey={(r) => r.productId} dense empty={<EmptyState icon={<Warehouse className="size-6" />} title="Nothing matches" body="Try a different search or stock filter." />} />
-          {data && <Pagination page={page} pageSize={pageSize} total={data.total} onPage={setPage} />}
+          <ul className="space-y-2.5" data-testid="reorder-suggestions">
+            {data.map((r) => (
+              <li key={r.productId} className="flex items-baseline justify-between gap-3 text-[13px]">
+                <Link href={`/admin/products/${r.productId}`} className="min-w-0 truncate font-medium hover:text-accent" title={`${r.title} · sold ${r.velocity30d} in 30 days · ${r.available} available`}>
+                  {r.title}
+                </Link>
+                <span className={cn('shrink-0 text-xs tabular-nums', r.daysLeft <= 7 ? 'text-danger' : 'text-warning')}>{r.daysLeft <= 0 ? 'Out now' : `~${r.daysLeft} days left`}</span>
+              </li>
+            ))}
+          </ul>
+          <Link href="/admin/purchases/new?reorder=1" className={buttonClass('secondary', 'md', 'mt-4 w-full')}>
+            Create purchase order
+          </Link>
         </>
       )}
-    </>
+    </Panel>
   );
 }
 

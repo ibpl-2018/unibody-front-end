@@ -13,7 +13,13 @@ export default function InvoicePrintPage() {
   const { can } = useAdmin();
   const { data: inv, error, refetch } = useApi(() => adminApi.admin.invoice(id), [id], { enabled: can('invoices') });
   useEffect(() => {
-    if (inv) document.title = `${inv.invoiceNo} · Tax invoice`;
+    if (!inv) return;
+    document.title = `${inv.invoiceNo} · Tax invoice`; // also the default file name for “Save as PDF”
+    // Opened from Print / Save as PDF: bring up the dialog once the invoice has painted.
+    if (new URLSearchParams(window.location.search).get('print') === '1') {
+      const t = setTimeout(() => window.print(), 300);
+      return () => clearTimeout(t);
+    }
   }, [inv]);
 
   return (

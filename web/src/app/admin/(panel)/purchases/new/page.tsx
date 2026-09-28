@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2 } from 'lucide-react';
 import { formatINR } from '@unibody/shared';
@@ -37,6 +37,21 @@ export default function NewPurchasePage() {
   const [busy, setBusy] = useState(false);
   const [supplierModal, setSupplierModal] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [fromReorder, setFromReorder] = useState(0);
+
+  // From Inventory → “Create purchase order”: one line per reorder suggestion, enough for 30 days.
+  useEffect(() => {
+    if (!can('purchases') || new URLSearchParams(window.location.search).get('reorder') !== '1') return;
+    adminApi.admin
+      .reorderSuggestions({ limit: 20 })
+      .then((rs) => {
+        if (!rs.length) return;
+        setLines(rs.map((r) => ({ ...newLine(), product: { id: r.productId, title: r.title, sku: r.sku, cost: r.unitCost }, qty: String(r.suggestedQty), unitCost: r.unitCost ? String(r.unitCost / 100) : '' })));
+        setFromReorder(rs.length);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!can('purchases')) return <NoAccess />;
 
@@ -82,7 +97,7 @@ export default function NewPurchasePage() {
       <PageHeader
         back={{ href: '/admin/purchases', label: 'Purchases' }}
         title="New purchase"
-        subtitle="Stock is added when you mark the purchase as received."
+        subtitle={fromReorder ? `Pre-filled with ${fromReorder} part(s) from reorder suggestions — pick a supplier and check quantities. Stock is added when you mark it received.` : 'Stock is added when you mark the purchase as received.'}
         actions={
           <Button onClick={submit} loading={busy}>
             Create purchase

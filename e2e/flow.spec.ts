@@ -123,7 +123,15 @@ test('admin: bulk-print invoices from the Invoices list', async ({ page, context
   await adminLogin(page);
   await page.goto('/admin/invoices');
   await settled(page);
-  const rows = page.getByRole('checkbox', { name: 'Select row' });
+  // Split view: the first invoice previews beside the list, ready to send or print.
+  const preview = page.getByTestId('invoice-preview');
+  await expect(preview.getByRole('heading', { name: 'TAX INVOICE' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Send on WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/91\d{10}\?text=.*INV/);
+  const second = page.getByRole('list', { name: 'Invoices' }).getByRole('button').nth(1);
+  const secondNo = (await second.locator('.font-mono').innerText()).trim();
+  await second.click();
+  await expect(preview).toContainText(secondNo);
+  const rows = page.getByRole('checkbox', { name: /^Select INV/ });
   await rows.nth(0).check();
   await rows.nth(1).check();
   const [popup] = await Promise.all([context.waitForEvent('page'), page.getByRole('button', { name: 'Print 2 invoices' }).click()]);

@@ -13,6 +13,7 @@ import type {
   AdminCodeSentResponse,
   AdminLoginResponse,
   AdminTwoStepResponse,
+  ReorderSuggestionDTO,
   ApprovalDTO,
   AuditEntryDTO,
   AuditVerifyDTO,
@@ -222,6 +223,7 @@ export function createApiClient(opts: ApiClientOptions) {
 
       inventory: (q: { q?: string; state?: 'OK' | 'LOW' | 'OUT'; page?: number; pageSize?: number } = {}) =>
         get<Paged<InventoryRowDTO> & { summary: InventorySummaryDTO }>('/api/admin/inventory', q as Query),
+      reorderSuggestions: (q: { limit?: number; within?: number } = {}) => get<ReorderSuggestionDTO[]>('/api/admin/inventory/reorder', q as Query),
       units: (q: { productId?: string; status?: string; q?: string; page?: number } = {}) => get<Paged<StockUnitDTO>>('/api/admin/inventory/units', q as Query),
       movements: (q: { productId?: string; type?: string; page?: number } = {}) => get<Paged<StockMovementDTO>>('/api/admin/inventory/movements', q as Query),
       addUnit: (b: { productId: string; serial: string; grade?: string; bin?: string }) => post<StockUnitDTO>('/api/admin/inventory/units', b),

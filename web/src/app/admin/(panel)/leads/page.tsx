@@ -1,14 +1,15 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { MessageCircle, NotebookPen, Phone, ShoppingCart } from 'lucide-react';
-import { LEAD_STAGES, formatINR, formatPhone, type LeadDTO, type LeadStage } from '@unibody/shared';
-import { Button, EmptyState, Field, Modal, Segmented, Textarea } from '@/components/ui';
+import { LEAD_STAGES, formatINR, formatPhone, type CustomerDTO, type LeadDTO, type LeadStage } from '@unibody/shared';
+import { Badge, Button, EmptyState, Field, Modal, Segmented, Textarea } from '@/components/ui';
 import { useToast } from '@/components/ui/toast';
-import { DataTable, ErrorState, PageHeader, Pagination, PillTabs, StatMini, type Column } from '@/components/admin/ui';
-import { CrmTabs } from '@/components/admin/crm-tabs';
+import { DataTable, ErrorState, Pagination, Panel, PillTabs, type Column } from '@/components/admin/ui';
+import { CrmHeader } from '@/components/admin/crm-tabs';
 import { LEAD_LABEL, LeadStageBadge } from '@/components/admin/badges';
 import { NoAccess } from '@/components/admin/no-access';
-import { adminApi, errMsg, pct, telLink, useApi, waLink } from '@/lib/admin/api';
+import { adminApi, errMsg, telLink, useApi, waLink } from '@/lib/admin/api';
 import { useAdmin } from '@/lib/admin/session';
 import { useResetPage } from '@/lib/admin/url';
 import { fmtDateTime } from '@/lib/format';
@@ -29,6 +30,7 @@ export default function LeadsPage() {
   const [tab, setTab] = useState<Tab>('ABANDONED');
   const [page, setPage] = useState(1);
   const [edit, setEdit] = useState<LeadDTO | null>(null);
+  const [version, setVersion] = useState(0);
   const { data, error, loading, refetch, setData } = useApi(() => adminApi.admin.leads({ stage: tab === 'OPEN' ? undefined : tab || undefined, page }), [tab, page], { enabled: allowed });
   useResetPage(setPage, [tab]);
   if (!allowed) return <NoAccess what="leads" />;
@@ -39,6 +41,7 @@ export default function LeadsPage() {
       setData((d) => d && { ...d, items: d.items.map((x) => (x.id === l.id ? { ...x, stage, note: note ?? x.note } : x)) });
       toast(`Lead marked ${LEAD_LABEL[stage].toLowerCase()}`);
       refreshCounts();
+      setVersion((v) => v + 1);
     } catch (e) {
       toast(errMsg(e), 'error');
     }
@@ -47,7 +50,6 @@ export default function LeadsPage() {
     if (l.stage === 'ABANDONED') void setStage(l, 'CONTACTED');
   };
 
-  const s = data?.summary;
   const cols: Column<LeadDTO>[] = [
     {
       key: 'who',
@@ -98,13 +100,7 @@ export default function LeadsPage() {
   ];
   return (
     <>
-      <PageHeader title="Customers & Leads" subtitle="Abandoned checkouts with a verified phone. A quick WhatsApp recovers many of them." />
-      <CrmTabs value="leads" openLeads={s?.open} />
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
-        <StatMini label="Open leads" value={s?.open ?? '—'} tone="accent" />
-        <StatMini label="Value in open carts" value={s ? formatINR(s.openValue) : '—'} />
-        <StatMini label="Conversion" value={s ? pct(s.conversion, 0) : '—'} tone="success" />
-      </div>
+      <CrmHeader value="leads" version={version} />
       <PillTabs className="mb-4" value={tab} onChange={setTab} tabs={[...LEAD_STAGES.map((st) => ({ value: st as Tab, label: LEAD_LABEL[st] })), { value: '' as Tab, label: 'All' }]} />
       {error && !data ? (
         <ErrorState message={error} onRetry={refetch} />
@@ -114,8 +110,42 @@ export default function LeadsPage() {
           {data && <Pagination page={page} pageSize={data.pageSize} total={data.total} onPage={setPage} />}
         </>
       )}
+      <TopCustomers />
       {edit && <LeadModal lead={edit} onClose={() => setEdit(null)} onSave={(st, note) => setStage(edit, st, note).then(() => setEdit(null))} />}
     </>
+  );
+}
+
+/** Highest lifetime value first (the customers list is sorted that way). */
+function TopCustomers() {
+  const { data } = useApi(() => adminApi.admin.customers({ page: 1 }), []);
+  const cols: Column<CustomerDTO>[] = [
+    {
+      key: 'n',
+      header: 'Customer',
+      cell: (c) => (
+        <div className="leading-tight">
+          <p className="font-medium">{c.name ?? 'Unnamed'}</p>
+          <p className="text-xs tabular-nums text-muted">{formatPhone(c.phone)}</p>
+        </div>
+      ),
+    },
+    { key: 'city', header: 'City', hide: 'md', cell: (c) => c.city ?? <span className="text-subtle">—</span> },
+    { key: 'o', header: 'Orders', align: 'right', cell: (c) => <span className="tabular-nums">{c.orderCount}</span> },
+    { key: 'ltv', header: 'Lifetime value', align: 'right', cell: (c) => <span className="font-medium tabular-nums">{formatINR(c.lifetimeValue)}</span> },
+    { key: 't', header: 'Type', hide: 'sm', cell: (c) => (c.isB2B ? <Badge tone="purple" dot>B2B</Badge> : <Badge tone={c.registered ? 'info' : 'neutral'} dot>{c.registered ? 'Registered' : 'Guest'}</Badge>) },
+  ];
+  return (
+    <Panel
+      className="mt-6"
+      title="Top customers"
+      action={
+        <Link href="/admin/customers" className="text-[13px] text-link hover:underline">
+          All customers ›
+        </Link>
+      }>
+      <DataTable columns={cols} rows={data?.items.slice(0, 5)} loading={!data} rowKey={(c) => c.id} rowHref={(c) => `/admin/customers/${c.id}`} dense />
+    </Panel>
   );
 }
 

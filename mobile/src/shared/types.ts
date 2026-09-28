@@ -381,6 +381,21 @@ export interface InventoryRowDTO {
   daysLeft: number | null;
 }
 
+export interface ReorderSuggestionDTO {
+  productId: string;
+  title: string;
+  sku: string;
+  available: number;
+  /** Units sold in the last 30 days. */
+  velocity30d: number;
+  /** At the current sales rate; 0 = already out. */
+  daysLeft: number;
+  /** Enough for the next 30 days. */
+  suggestedQty: number;
+  /** Last cost price (paise) — Super Admin only, 0 for others. */
+  unitCost: number;
+}
+
 export interface InventorySummaryDTO {
   stockValue: number;
   units: number;

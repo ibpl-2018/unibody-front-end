@@ -1,12 +1,13 @@
 'use client';
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Users } from 'lucide-react';
 import { formatINR, formatPhone, type CustomerDTO } from '@unibody/shared';
 import { Badge, EmptyState } from '@/components/ui';
-import { DataTable, ErrorState, FilterSelect, PageHeader, Pagination, SearchInput, StatMini, type Column } from '@/components/admin/ui';
-import { CrmTabs } from '@/components/admin/crm-tabs';
+import { DataTable, ErrorState, FilterSelect, Pagination, SearchInput, type Column } from '@/components/admin/ui';
+import { CrmHeader } from '@/components/admin/crm-tabs';
 import { NoAccess } from '@/components/admin/no-access';
-import { adminApi, pct, useApi, useDebounced } from '@/lib/admin/api';
+import { adminApi, useApi, useDebounced } from '@/lib/admin/api';
 import { useAdmin } from '@/lib/admin/session';
 import { useResetPage } from '@/lib/admin/url';
 import { fmtDate } from '@/lib/format';
@@ -14,16 +15,26 @@ import { fmtDate } from '@/lib/format';
 type T = '' | 'guest' | 'registered' | 'b2b';
 
 export default function CustomersPage() {
-  const { can, counts } = useAdmin();
+  return (
+    <Suspense>
+      <Customers />
+    </Suspense>
+  );
+}
+
+function Customers() {
+  const { can } = useAdmin();
   const allowed = can('customers');
+  const urlType = useSearchParams().get('type');
   const [q, setQ] = useState('');
-  const [type, setType] = useState<T>('');
+  const [type, setType] = useState<T>(urlType === 'b2b' ? 'b2b' : '');
+  // The "Repair shops (B2B)" tab is the same list, filtered.
+  useEffect(() => setType(urlType === 'b2b' ? 'b2b' : ''), [urlType]);
   const [page, setPage] = useState(1);
   const dq = useDebounced(q.trim(), 300);
   const { data, error, loading, refetch } = useApi(() => adminApi.admin.customers({ q: dq || undefined, type: type || undefined, page }), [dq, type, page], { enabled: allowed });
   useResetPage(setPage, [dq, type]);
   if (!allowed) return <NoAccess what="customers" />;
-  const s = data?.summary;
   const cols: Column<CustomerDTO>[] = [
     {
       key: 'n',
@@ -56,13 +67,7 @@ export default function CustomersPage() {
   ];
   return (
     <>
-      <PageHeader title="Customers & Leads" subtitle="Everyone who has ordered or verified their phone. Sorted by lifetime value." />
-      <CrmTabs value="customers" openLeads={counts.openLeads} />
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
-        <StatMini label="Customers" value={s ? s.total.toLocaleString('en-IN') : '—'} />
-        <StatMini label="Checked out as guest" value={s ? pct(s.guestPct, 0) : '—'} />
-        <StatMini label="Repeat purchase rate" value={s ? pct(s.repeatRate, 0) : '—'} tone="success" />
-      </div>
+      <CrmHeader value={type === 'b2b' ? 'b2b' : 'customers'} />
       <div className="mb-4 flex flex-wrap gap-2">
         <SearchInput value={q} onChange={setQ} placeholder="Name or phone" className="w-full sm:w-72" />
         <FilterSelect
