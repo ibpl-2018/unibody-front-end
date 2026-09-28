@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Copy, ExternalLink, PackageSearch, Pencil, Plus, Trash2 } from 'lucide-react';
-import { CONDITIONS, CONDITION_SHORT, formatINR, type AdminProductListItem, type Condition } from '@unibody/shared';
+import { CONDITIONS, CONDITION_SHORT, formatINR, isHeld, type AdminProductListItem, type Condition } from '@unibody/shared';
 import { Button, ButtonLink, ConditionBadge, EmptyState, Switch } from '@/components/ui';
 import { useToast } from '@/components/ui/toast';
 import { BulkAction, BulkBar, DataTable, Dropdown, ErrorState, FilterSelect, MenuItem, PageHeader, Pagination, SearchInput, Thumb, useConfirm, type Column } from '@/components/admin/ui';
@@ -91,8 +91,8 @@ export function ProductsView({ initial }: { initial: ProductFilters }) {
   async function remove(p: AdminProductListItem) {
     if (!(await confirm({ title: 'Delete this product?', body: <>“{p.title}” will be removed permanently. Products that have orders can’t be deleted — hide them instead.</>, confirmLabel: 'Delete', danger: true }))) return;
     try {
-      await adminApi.admin.deleteProduct(p.id);
-      toast('Product deleted');
+      const r = await adminApi.admin.deleteProduct(p.id);
+      toast(isHeld(r) ? r.message : 'Product deleted');
       void refetch();
     } catch (e) {
       toast(errMsg(e), 'error');

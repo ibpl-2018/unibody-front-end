@@ -1,5 +1,9 @@
 import type {
   AdminRole,
+  AlertSeverity,
+  ApprovalKind,
+  ApprovalMode,
+  ApprovalStatus,
   Condition,
   CouponType,
   LeadStage,
@@ -558,4 +562,154 @@ export interface OrderLiveEvent {
   orderNo: string;
   status: OrderStatus;
   at: string;
+}
+
+// ---------------- Security ----------------
+export interface SecuritySettingsDTO {
+  approvalMode: ApprovalMode;
+  /** Orders can't be marked packed until every unit is scanned. */
+  requireScanToPack: boolean;
+  /** Business hours (IST, 0–23) — staff changes outside them raise an alert. */
+  workStartHour: number;
+  workEndHour: number;
+}
+
+/** Returned instead of the normal result when a change is held for approval (VISIBLE mode). */
+export interface HeldResponseDTO {
+  held: true;
+  approvalId: string;
+  message: string;
+}
+
+export interface ApprovalDTO {
+  id: string;
+  kind: ApprovalKind;
+  status: ApprovalStatus;
+  summary: string;
+  risks: string[];
+  entity: string | null;
+  entityId: string | null;
+  discreet: boolean;
+  payload: unknown;
+  requestedBy: { id: string; name: string; role: string };
+  requestedAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  result: string | null;
+}
+
+export interface SecurityAlertDTO {
+  id: string;
+  at: string;
+  severity: AlertSeverity;
+  kind: string;
+  title: string;
+  detail: string | null;
+  actorName: string | null;
+  ref: string | null;
+  status: 'OPEN' | 'RESOLVED';
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+}
+
+export interface AuditEntryDTO {
+  seq: number;
+  at: string;
+  actorName: string | null;
+  actorRole: string | null;
+  action: string;
+  entity: string | null;
+  entityId: string | null;
+  data: unknown;
+  ip: string | null;
+  hash: string;
+}
+
+export interface AuditVerifyDTO {
+  ok: boolean;
+  checked: number;
+  /** First sequence number whose hash doesn't match (tampering), if any. */
+  brokenAt: number | null;
+  lastHash: string | null;
+}
+
+export interface ReconciliationRowDTO {
+  productId: string;
+  sku: string;
+  title: string;
+  /** Recorded stock on hand. */
+  onHand: number;
+  /** Sum of every stock movement (opening + purchases + returns − sales − adjustments − losses). */
+  ledger: number;
+  /** Units with a scannable code that are IN_STOCK or RESERVED. */
+  units: number;
+  received: number;
+  sold: number;
+  returned: number;
+  writtenOff: number;
+  /** Units shipped in orders that have a GST invoice vs. units recorded as sold. */
+  invoicedQty: number;
+  missingUnits: number;
+  issues: string[];
+}
+
+export interface ReconciliationDTO {
+  rows: ReconciliationRowDTO[];
+  summary: { products: number; withIssues: number; ledgerMismatch: number; unitMismatch: number; invoiceMismatch: number; missingUnits: number };
+}
+
+export interface StaffActivityDTO {
+  id: string;
+  name: string;
+  role: string;
+  actions7d: number;
+  pendingApprovals: number;
+  rejected30d: number;
+  alerts30d: number;
+  offHours30d: number;
+  lastActionAt: string | null;
+}
+
+export interface SecurityOverviewDTO {
+  pendingApprovals: number;
+  openAlerts: number;
+  highAlerts: number;
+  missingUnits: number;
+  reconciliationIssues: number;
+  codUncollected: { orders: number; amount: number };
+  staff: StaffActivityDTO[];
+  settings: SecuritySettingsDTO;
+}
+
+export interface StockCountScanDTO {
+  code: string;
+  outcome: 'OK' | 'UNKNOWN' | 'OUT_OF_SCOPE' | 'NOT_ON_SHELF' | 'DUPLICATE';
+  productTitle: string | null;
+  unitStatus: string | null;
+  by: string;
+  at: string;
+}
+
+export interface StockCountDTO {
+  id: string;
+  code: string;
+  status: 'OPEN' | 'SUBMITTED' | 'CLOSED';
+  scopeLabel: string;
+  note: string | null;
+  startedBy: string;
+  startedAt: string;
+  submittedAt: string | null;
+  closedAt: string | null;
+  closedBy: string | null;
+  scanned: number;
+  scans: StockCountScanDTO[];
+  /** Filled on submit. Missing = expected on the shelf but not scanned. */
+  result: {
+    expected: number;
+    found: number;
+    missing: { unitId: string; code: string; productId: string; productTitle: string; status: string }[];
+    unexpected: { code: string; outcome: string; productTitle: string | null }[];
+  } | null;
 }

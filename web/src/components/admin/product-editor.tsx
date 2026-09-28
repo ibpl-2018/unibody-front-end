@@ -11,6 +11,7 @@ import {
   CONDITION_LABEL,
   KEYBOARD_LAYOUTS,
   formatINR,
+  isHeld,
   percentOff,
   type AdminProductDTO,
   type Condition,
@@ -200,6 +201,10 @@ export function ProductEditor({ id }: { id?: string }) {
     setSaving(true);
     try {
       const p = id ? await adminApi.admin.updateProduct(id, body) : await adminApi.admin.createProduct(body);
+      if (isHeld(p)) {
+        toast(p.message); // price change held for the Super Admin
+        return;
+      }
       const fm = fromProduct(p);
       setProduct(p);
       setF(fm);
@@ -217,8 +222,8 @@ export function ProductEditor({ id }: { id?: string }) {
   async function remove() {
     if (!product || !(await confirm({ title: 'Delete this product?', body: 'This can’t be undone. Products with orders can’t be deleted — hide them instead.', confirmLabel: 'Delete', danger: true }))) return;
     try {
-      await adminApi.admin.deleteProduct(product.id);
-      toast('Product deleted');
+      const r = await adminApi.admin.deleteProduct(product.id);
+      toast(isHeld(r) ? r.message : 'Product deleted');
       router.replace('/admin/products');
     } catch (e) {
       toast(errMsg(e), 'error');

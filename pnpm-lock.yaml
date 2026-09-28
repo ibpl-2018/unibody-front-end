@@ -39,6 +39,9 @@ importers:
       clsx:
         specifier: 2.1.1
         version: 2.1.1
+      jsbarcode:
+        specifier: ^3.12.3
+        version: 3.12.3
       lucide-react:
         specifier: 1.48.0
         version: 1.48.0(react@19.3.0)
@@ -1021,6 +1024,9 @@ packages:
 
   js-tokens@9.0.1:
     resolution: {integrity: sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ==}
+
+  jsbarcode@3.12.3:
+    resolution: {integrity: sha512-CuHU9hC6dPsHF5oVFMo8NW76uQVjH4L22CsP4hW+dNnGywJHC/B0ThA1CTDVLnxKLrrpYdicBLnd2xsgTfRnvg==}
 
   lightningcss-android-arm64@1.32.0:
     resolution: {integrity: sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg==}
@@ -2131,6 +2137,8 @@ snapshots:
   joycon@3.1.1: {}
 
   js-tokens@9.0.1: {}
+
+  jsbarcode@3.12.3: {}
 
   lightningcss-android-arm64@1.32.0:
     optional: true

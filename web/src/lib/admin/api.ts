@@ -121,6 +121,8 @@ export const PERMS = {
   cost: ['OWNER'],
   codCollect: ['OWNER', 'MANAGER'],
   invoiceGenerate: ['OWNER', 'MANAGER'],
+  /** Security desk: approvals, alerts, reconciliation, audit log — Super Admin only. */
+  security: ['OWNER'],
 } as const satisfies Record<string, readonly AdminRole[]>;
 export type Perm = keyof typeof PERMS;
 export const can = (role: AdminRole | undefined, perm: Perm) => !!role && (PERMS[perm] as readonly AdminRole[]).includes(role);

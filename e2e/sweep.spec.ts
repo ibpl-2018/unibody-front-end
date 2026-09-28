@@ -84,6 +84,8 @@ for (const scheme of ['light', 'dark'] as const) {
         ['/admin/offers', 'offers'],
         ['/admin/reports', 'reports'],
         ['/admin/settings', 'settings'],
+        ['/admin/security', 'security'],
+        ['/admin/stock-counts', 'stock-counts'],
       ];
       for (const [path, name] of pages) await test.step(path, () => check(page, path, `admin-${scheme}-${name}`, testInfo));
     });

@@ -17,6 +17,8 @@ export interface NavCounts {
   ordersToAct: number;
   openLeads: number;
   lowStock: number;
+  /** pending approvals + open security alerts (Super Admin) */
+  security: number;
 }
 export type LiveState = 'connecting' | 'live' | 'offline';
 
@@ -73,7 +75,7 @@ export function AdminSession({ children, fallback }: { children: React.ReactNode
   const [liveVersion, setLiveVersion] = useState(0);
   const [live, setLive] = useState<LiveState>('connecting');
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
-  const [counts, setCounts] = useState<NavCounts>({ ordersToAct: 0, openLeads: 0, lowStock: 0 });
+  const [counts, setCounts] = useState<NavCounts>({ ordersToAct: 0, openLeads: 0, lowStock: 0, security: 0 });
   const [days, setDaysState] = useState<7 | 30 | 90>(30);
 
   const logout = useCallback(() => {
@@ -132,6 +134,10 @@ export function AdminSession({ children, fallback }: { children: React.ReactNode
       .inventory({ pageSize: 1 })
       .then((r) => setCounts((c) => ({ ...c, lowStock: r.summary.lowStock })))
       .catch(() => {});
+    if (can(role, 'security'))
+      Promise.all([adminApi.admin.approvals({ status: 'PENDING' }), adminApi.admin.securityAlerts({ status: 'OPEN' })])
+        .then(([a, s]) => setCounts((c) => ({ ...c, security: a.total + s.total })))
+        .catch(() => {});
     if (can(role, 'leads'))
       adminApi.admin
         .leads({})

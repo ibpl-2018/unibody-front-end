@@ -1,4 +1,4 @@
-import type { OrderStatus } from './constants';
+import type { ApprovalStatus, OrderStatus } from './constants';
 import type {
   AddressInput,
   AdminPlaceOrderInput,
@@ -11,6 +11,16 @@ import type {
 } from './schemas';
 import type {
   AdminLoginResponse,
+  ApprovalDTO,
+  AuditEntryDTO,
+  AuditVerifyDTO,
+  HeldResponseDTO,
+  ReconciliationDTO,
+  SecurityAlertDTO,
+  SecurityOverviewDTO,
+  SecuritySettingsDTO,
+  StockCountDTO,
+  StockCountScanDTO,
   AdminPlaceOrderResponse,
   AdminOrderDetail,
   AdminOrderListItem,
@@ -171,22 +181,25 @@ export function createApiClient(opts: ApiClientOptions) {
         get<Paged<AdminOrderListItem> & { counts: Record<string, number>; /** distinct delivery cities (newer API builds) */ cities?: string[] }>('/api/admin/orders', q as Query),
       order: (id: string) => get<AdminOrderDetail>(`/api/admin/orders/${id}`),
       createOrder: (body: AdminPlaceOrderInput) => post<AdminPlaceOrderResponse>('/api/admin/orders', body),
-      setStatus: (id: string, status: OrderStatus, note?: string) => post<AdminOrderDetail>(`/api/admin/orders/${id}/status`, { status, note }),
+      /** Risky moves by non-owners may come back held (see isHeld). */
+      setStatus: (id: string, status: OrderStatus, note?: string) => post<AdminOrderDetail | HeldResponseDTO>(`/api/admin/orders/${id}/status`, { status, note }),
+      scanUnit: (id: string, code: string) => post<AdminOrderDetail>(`/api/admin/orders/${id}/scan`, { code }),
+      unscanUnit: (id: string, unitId: string) => del<AdminOrderDetail>(`/api/admin/orders/${id}/scan/${unitId}`),
       bulkStatus: (ids: string[], status: OrderStatus) => post<{ updated: number; failed: { id: string; message: string }[] }>('/api/admin/orders/bulk-status', { ids, status }),
       addNote: (id: string, note: string) => post<AdminOrderDetail>(`/api/admin/orders/${id}/notes`, { note }),
       assignUnit: (id: string, itemId: string, unitId: string) => post<AdminOrderDetail>(`/api/admin/orders/${id}/assign-unit`, { itemId, unitId }),
       setShipment: (id: string, body: { courier: string; awb: string; trackingUrl?: string }) => post<AdminOrderDetail>(`/api/admin/orders/${id}/shipment`, body),
       markCodCollected: (id: string) => post<AdminOrderDetail>(`/api/admin/orders/${id}/cod-collected`),
-      generateInvoice: (id: string) => post<AdminOrderDetail>(`/api/admin/orders/${id}/invoice`),
+      generateInvoice: (id: string) => post<AdminOrderDetail | HeldResponseDTO>(`/api/admin/orders/${id}/invoice`),
 
       products: (q: { q?: string; family?: string; category?: string; condition?: string; status?: string; stock?: 'low' | 'out'; page?: number; pageSize?: number } = {}) =>
         get<Paged<AdminProductListItem>>('/api/admin/products', q as Query),
       product: (id: string) => get<AdminProductDTO>(`/api/admin/products/${id}`),
       createProduct: (body: ProductInput) => post<AdminProductDTO>('/api/admin/products', body),
-      updateProduct: (id: string, body: Partial<ProductInput>) => put<AdminProductDTO>(`/api/admin/products/${id}`, body),
+      updateProduct: (id: string, body: Partial<ProductInput>) => put<AdminProductDTO | HeldResponseDTO>(`/api/admin/products/${id}`, body),
       setProductStatus: (id: string, status: 'ACTIVE' | 'HIDDEN' | 'DRAFT') => patch<AdminProductDTO>(`/api/admin/products/${id}/status`, { status }),
       duplicateProduct: (id: string) => post<AdminProductDTO>(`/api/admin/products/${id}/duplicate`),
-      deleteProduct: (id: string) => del<{ ok: true }>(`/api/admin/products/${id}`),
+      deleteProduct: (id: string) => del<{ ok: true } | HeldResponseDTO>(`/api/admin/products/${id}`),
 
       families: () => get<DeviceFamilyDTO[]>('/api/admin/catalog/families'),
       createFamily: (b: unknown) => post<DeviceFamilyDTO>('/api/admin/catalog/families', b),
@@ -214,7 +227,24 @@ export function createApiClient(opts: ApiClientOptions) {
         if (!res.ok) throw new ApiError(res.status, data.code ?? 'ERROR', data.message ?? 'Upload failed');
         return data as { path: string; url: string };
       },
-      adjustStock: (b: { productId: string; qty: number; reason: string; unitCost?: number }) => post<InventoryRowDTO>('/api/admin/inventory/adjust', b),
+      adjustStock: (b: { productId: string; qty: number; reason: string; unitCost?: number; unitCodes?: string[] }) => post<InventoryRowDTO | HeldResponseDTO>('/api/admin/inventory/adjust', b),
+
+      // ---- inventory control & anti-theft ----
+      stockCounts: () => get<StockCountDTO[]>('/api/admin/stock-counts'),
+      stockCount: (id: string) => get<StockCountDTO>(`/api/admin/stock-counts/${id}`),
+      startStockCount: (b: { productIds?: string[]; categoryId?: string; note?: string }) => post<StockCountDTO>('/api/admin/stock-counts', b),
+      scanStockCount: (id: string, code: string) => post<{ outcome: StockCountScanDTO['outcome']; count: StockCountDTO }>(`/api/admin/stock-counts/${id}/scan`, { code }),
+      submitStockCount: (id: string) => post<StockCountDTO>(`/api/admin/stock-counts/${id}/submit`),
+      closeStockCount: (id: string, b: { writeOffUnitIds: string[]; note?: string }) => post<StockCountDTO | HeldResponseDTO>(`/api/admin/stock-counts/${id}/close`, b),
+      securityOverview: () => get<SecurityOverviewDTO>('/api/admin/security/overview'),
+      updateSecuritySettings: (b: Partial<SecuritySettingsDTO>) => put<SecuritySettingsDTO>('/api/admin/security/settings', b),
+      approvals: (q: { status?: ApprovalStatus | 'ALL'; page?: number } = {}) => get<Paged<ApprovalDTO>>('/api/admin/security/approvals', q as Query),
+      decideApproval: (id: string, decision: 'APPROVE' | 'REJECT', note?: string) => post<ApprovalDTO>(`/api/admin/security/approvals/${id}/decide`, { decision, note }),
+      securityAlerts: (q: { status?: 'OPEN' | 'RESOLVED' | 'ALL'; page?: number } = {}) => get<Paged<SecurityAlertDTO>>('/api/admin/security/alerts', q as Query),
+      resolveAlert: (id: string, note: string) => post<SecurityAlertDTO>(`/api/admin/security/alerts/${id}/resolve`, { note }),
+      reconciliation: () => get<ReconciliationDTO>('/api/admin/security/reconciliation'),
+      auditLog: (q: { page?: number; action?: string; actorId?: string; entity?: string; entityId?: string } = {}) => get<Paged<AuditEntryDTO>>('/api/admin/security/audit', q as Query),
+      verifyAudit: () => get<AuditVerifyDTO>('/api/admin/security/audit/verify'),
 
       suppliers: () => get<SupplierDTO[]>('/api/admin/suppliers'),
       createSupplier: (b: unknown) => post<SupplierDTO>('/api/admin/suppliers', b),
@@ -261,3 +291,6 @@ export function createApiClient(opts: ApiClientOptions) {
 type AddressDTOWithId = import('./types').AddressDTO & { id: string };
 export type ApiClient = ReturnType<typeof createApiClient>;
 export type { ProductCardDTO };
+
+/** True when a change was held for the Super Admin's approval (VISIBLE mode) instead of applied. */
+export const isHeld = (r: unknown): r is HeldResponseDTO => !!r && typeof r === 'object' && (r as { held?: unknown }).held === true;

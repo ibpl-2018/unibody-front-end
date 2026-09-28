@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Banknote, Check, Copy, ExternalLink, FileText, MapPin, MessageCircle, Phone, Printer, Send, ShieldCheck, Truck, User } from 'lucide-react';
-import { ADMIN_STATUS_LABEL, CONDITION_SHORT, ORDER_FLOW, PAYMENT_METHOD_LABEL, formatINR, formatPhone, type AdminOrderDetail, type OrderStatus } from '@unibody/shared';
+import { ADMIN_STATUS_LABEL, CONDITION_SHORT, ORDER_FLOW, PAYMENT_METHOD_LABEL, formatINR, formatPhone, isHeld, type AdminOrderDetail, type HeldResponseDTO, type OrderStatus } from '@unibody/shared';
 import { Badge, Button, ConditionBadge, Field, Input, Modal, Select, Skeleton, StatusBadge, Textarea, buttonClass } from '@/components/ui';
 import { useToast } from '@/components/ui/toast';
 import { ErrorState, KeyVal, PageHeader, Panel, Thumb } from '@/components/admin/ui';
+import { beep, ScanInput } from '@/components/admin/scan-input';
 import { PaymentBadge } from '@/components/admin/badges';
 import { adminApi, errMsg, fieldErrors, telLink, useAction, useApi, waLink } from '@/lib/admin/api';
 import { useAdmin, useLiveRefetch } from '@/lib/admin/session';
@@ -39,10 +40,13 @@ export default function OrderDetailPage() {
     if (o) document.title = `#${o.orderNo} · Unibody Admin`;
   }, [o]);
 
-  const act = async (key: string, fn: () => Promise<AdminOrderDetail>, ok: string) => {
+  const act = async (key: string, fn: () => Promise<AdminOrderDetail | HeldResponseDTO>, ok: string) => {
     try {
       const r = await run(key, fn);
-      if (r) {
+      if (isHeld(r)) {
+        toast(r.message); // held for the Super Admin's approval
+        void refetch();
+      } else if (r) {
         setData(r);
         toast(ok);
         refreshCounts();
@@ -150,7 +154,21 @@ export default function OrderDetailPage() {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-5">
-          <ItemsCard o={o} onAssign={(itemId, unitId) => act('assign', () => adminApi.admin.assignUnit(o.id, itemId, unitId), 'Unit assigned')} />
+          <ItemsCard
+            o={o}
+            canPick={can('security')}
+            onAssign={(itemId, unitId) => act('assign', () => adminApi.admin.assignUnit(o.id, itemId, unitId), 'Unit assigned')}
+            onScan={async (code) => {
+              try {
+                setData(await adminApi.admin.scanUnit(o.id, code));
+                beep(true);
+              } catch (e) {
+                beep(false);
+                toast(errMsg(e), 'error');
+              }
+            }}
+            onUnscan={(code) => act('unscan', () => adminApi.admin.unscanUnit(o.id, code), `${code} removed`)}
+          />
           <ShipmentCard o={o} onSaved={setData} />
           <TimelineCard o={o} onSaved={setData} />
         </div>
@@ -336,10 +354,25 @@ function CopyBtn({ text }: { text: string }) {
   );
 }
 
-function ItemsCard({ o, onAssign }: { o: AdminOrderDetail; onAssign: (itemId: string, unitId: string) => void }) {
-  const canAssign = ['NEW', 'CONFIRMED', 'PACKED'].includes(o.status);
+function ItemsCard({ o, onAssign, onScan, onUnscan, canPick }: { o: AdminOrderDetail; onAssign: (itemId: string, unitId: string) => void; onScan: (code: string) => Promise<void>; onUnscan: (code: string) => void; canPick: boolean }) {
+  const scanning = ['NEW', 'CONFIRMED'].includes(o.status);
+  const canAssign = canPick && scanning;
+  const needed = o.items.reduce((a, i) => a + i.qty, 0);
+  const scanned = o.items.reduce((a, i) => a + i.unitSerials.length, 0);
   return (
-    <Panel title={`Items · ${o.items.reduce((a, i) => a + i.qty, 0)}`} padded={false}>
+    <Panel title={`Items · ${needed}`} padded={false}>
+      {scanning && (
+        <div className="border-b border-line-subtle px-5 py-4 sm:px-6">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold">Scan each unit as you pick it</p>
+            <Badge tone={scanned === needed ? 'success' : 'warning'} >
+              {scanned}/{needed} scanned
+            </Badge>
+          </div>
+          <ScanInput onScan={onScan} disabled={scanned === needed} placeholder={scanned === needed ? 'All units scanned — ready to pack' : undefined} />
+          <p className="mt-2 text-xs text-muted">The order can’t be marked packed until every unit’s barcode is scanned — so each piece that leaves is on record.</p>
+        </div>
+      )}
       <ul className="divide-y divide-line-subtle">
         {o.items.map((it) => {
           const units = o.availableUnits[it.productId] ?? [];
@@ -360,8 +393,14 @@ function ItemsCard({ o, onAssign }: { o: AdminOrderDetail; onAssign: (itemId: st
                       <Badge key={s} tone="success">
                         <Check className="size-3" />
                         {s}
+                        {scanning && (
+                          <button type="button" aria-label={`Remove ${s}`} onClick={() => onUnscan(s)} className="-mr-1 ml-0.5 rounded-full px-1 hover:bg-success/20">
+                            ×
+                          </button>
+                        )}
                       </Badge>
                     ))}
+                    {scanning && it.unitSerials.length < it.qty && <span className="text-[11px] font-medium text-warning">{it.qty - it.unitSerials.length} to scan</span>}
                     {canAssign && it.unitSerials.length < it.qty && units.length > 0 && (
                       <Select
                         aria-label="Assign serial unit"
@@ -369,7 +408,7 @@ function ItemsCard({ o, onAssign }: { o: AdminOrderDetail; onAssign: (itemId: st
                         value=""
                         onChange={(e) => e.target.value && onAssign(it.id, e.target.value)}
                       >
-                        <option value="">Assign serial ({units.length} in stock)…</option>
+                        <option value="">Pick without scanning ({units.length} in stock)…</option>
                         {units.map((u) => (
                           <option key={u.id} value={u.id}>
                             {u.serial}
@@ -379,7 +418,7 @@ function ItemsCard({ o, onAssign }: { o: AdminOrderDetail; onAssign: (itemId: st
                         ))}
                       </Select>
                     )}
-                    {canAssign && it.unitSerials.length < it.qty && units.length === 0 && <span className="text-[11px] text-subtle">No serialised units in stock</span>}
+                    {scanning && it.unitSerials.length < it.qty && units.length === 0 && <span className="text-[11px] text-danger">No units of this part in stock</span>}
                   </div>
                 </div>
               </div>

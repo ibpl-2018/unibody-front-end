@@ -1,4 +1,4 @@
-import { adminLogin, API, expect, PACKER, randomPhone, saveState, settled, test } from './helpers';
+import { adminLogin, API, expect, OWNER, PACKER, randomPhone, saveState, settled, test } from './helpers';
 
 // One customer journey end to end through the real UI:
 // storefront checkout (OTP, COD) → live tracking page updates while admin moves the order → GST invoice on dispatch.
@@ -56,7 +56,7 @@ test('customer: listing → product → bag → OTP checkout → COD order', asy
   saveState({ orderNo, phone, slug });
 });
 
-test('admin: process the order while the customer watches live tracking', async ({ page, context }) => {
+test('admin: process the order while the customer watches live tracking', async ({ page, context, request }) => {
   const customer = await context.newPage();
   await customer.goto(`/track/${orderNo}?phone=${phone}`);
   await expect(customer.getByText('Live', { exact: true })).toBeVisible({ timeout: 15_000 });
@@ -70,6 +70,17 @@ test('admin: process the order while the customer watches live tracking', async 
   // SSE pushes the change to the customer's open page without a reload.
   await expect(customer.getByText('Your parts are being picked and bench-tested.')).toBeVisible();
 
+  // Scan-to-pack: scan each unit's barcode (a scanner types the code + Enter) before packing.
+  const { token } = await (await request.post(`${API}/api/admin/auth/login`, { data: OWNER })).json();
+  const detail = await (await request.get(`${API}/api/admin/orders/${orderNo}`, { headers: { authorization: `Bearer ${token}` } })).json();
+  for (const it of detail.items as { productId: string; qty: number }[]) {
+    const units = await (await request.get(`${API}/api/admin/inventory/units?productId=${it.productId}&status=IN_STOCK`, { headers: { authorization: `Bearer ${token}` } })).json();
+    for (const u of units.items.slice(0, it.qty)) {
+      await page.getByLabel('Scan unit code').fill(u.serial);
+      await page.getByLabel('Scan unit code').press('Enter');
+      await expect(page.getByText(u.serial).first()).toBeVisible();
+    }
+  }
   await page.getByRole('button', { name: 'Mark packed' }).click();
   await expect(customer.getByText('Packed and quality-checked — handing to the courier.')).toBeVisible();
 

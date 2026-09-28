@@ -108,6 +108,8 @@ export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
 export const ADMIN_ROLES = ['OWNER', 'MANAGER', 'PACKER'] as const;
 export type AdminRole = (typeof ADMIN_ROLES)[number];
+/** OWNER is the single Super Admin; MANAGER = Admin (e.g. partners); PACKER = Staff. */
+export const ROLE_LABEL: Record<AdminRole, string> = { OWNER: 'Super admin', MANAGER: 'Admin', PACKER: 'Staff' };
 
 export const LEAD_STAGES = ['ABANDONED', 'CONTACTED', 'CONVERTED', 'LOST'] as const;
 export type LeadStage = (typeof LEAD_STAGES)[number];
@@ -118,10 +120,10 @@ export type CouponType = (typeof COUPON_TYPES)[number];
 export const PRODUCT_STATUSES = ['ACTIVE', 'DRAFT', 'HIDDEN'] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
-export const UNIT_STATUSES = ['IN_STOCK', 'RESERVED', 'SOLD', 'RETURNED', 'SCRAPPED'] as const;
+export const UNIT_STATUSES = ['IN_STOCK', 'RESERVED', 'SOLD', 'RETURNED', 'SCRAPPED', 'MISSING'] as const;
 export type UnitStatus = (typeof UNIT_STATUSES)[number];
 
-export const MOVEMENT_TYPES = ['PURCHASE', 'HARVEST', 'SALE', 'RETURN', 'ADJUSTMENT', 'CANCEL'] as const;
+export const MOVEMENT_TYPES = ['PURCHASE', 'HARVEST', 'SALE', 'RETURN', 'ADJUSTMENT', 'CANCEL', 'LOSS'] as const;
 export type MovementType = (typeof MOVEMENT_TYPES)[number];
 
 export const COLOURS = ['Space Grey', 'Silver', 'Gold', 'Midnight', 'Starlight', 'Space Black', 'Sky Blue', 'Black', 'White', 'Blue', 'Green', 'Pink', 'Purple', 'Yellow', 'Orange'] as const;
@@ -144,3 +146,22 @@ export const COLOUR_HEX: Record<string, string> = {
 };
 
 export const KEYBOARD_LAYOUTS = ['US', 'UK', 'IN'] as const;
+
+// ---------------- Security ----------------
+export const APPROVAL_KINDS = ['STOCK_ADJUST', 'PRODUCT_UPDATE', 'PRODUCT_DELETE', 'ORDER_STATUS', 'INVOICE_GENERATE', 'UNIT_WRITE_OFF'] as const;
+export type ApprovalKind = (typeof APPROVAL_KINDS)[number];
+export const APPROVAL_KIND_LABEL: Record<ApprovalKind, string> = {
+  STOCK_ADJUST: 'Stock adjustment',
+  PRODUCT_UPDATE: 'Price / cost change',
+  PRODUCT_DELETE: 'Delete product',
+  ORDER_STATUS: 'Order cancel / return',
+  INVOICE_GENERATE: 'Manual invoice',
+  UNIT_WRITE_OFF: 'Write off missing units',
+};
+export const APPROVAL_STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'FAILED'] as const;
+export type ApprovalStatus = (typeof APPROVAL_STATUSES)[number];
+export const ALERT_SEVERITIES = ['LOW', 'MEDIUM', 'HIGH'] as const;
+export type AlertSeverity = (typeof ALERT_SEVERITIES)[number];
+/** VISIBLE: requester is told it awaits approval. DISCREET: requester sees a normal success; the owner reviews quietly. */
+export const APPROVAL_MODES = ['VISIBLE', 'DISCREET'] as const;
+export type ApprovalMode = (typeof APPROVAL_MODES)[number];

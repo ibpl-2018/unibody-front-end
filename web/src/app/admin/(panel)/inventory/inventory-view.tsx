@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Boxes, Download, IndianRupee, PackageX, Plus, ScanBarcode, SlidersHorizontal, Warehouse } from 'lucide-react';
-import { CONDITIONS, CONDITION_SHORT, MOVEMENT_TYPES, UNIT_STATUSES, formatINR, type Condition, type InventoryRowDTO, type MovementType, type StockMovementDTO, type StockUnitDTO, type UnitStatus } from '@unibody/shared';
+import { AlertTriangle, Boxes, ClipboardCheck, Download, IndianRupee, PackageX, Plus, Printer, ScanBarcode, SlidersHorizontal, Warehouse } from 'lucide-react';
+import { CONDITIONS, CONDITION_SHORT, MOVEMENT_TYPES, UNIT_STATUSES, formatINR, isHeld, type Condition, type InventoryRowDTO, type MovementType, type StockMovementDTO, type StockUnitDTO, type UnitStatus } from '@unibody/shared';
 import { Badge, Button, ConditionBadge, EmptyState, Field, Input, Modal, Segmented, Select, buttonClass } from '@/components/ui';
 import { useToast } from '@/components/ui/toast';
 import { DataTable, ErrorState, FilterSelect, FormGrid, KpiCard, LineTabs, MoneyInput, PageHeader, Pagination, SearchInput, Thumb, type Column } from '@/components/admin/ui';
@@ -23,8 +23,9 @@ const MOVE_TONE: Record<MovementType, 'success' | 'info' | 'danger' | 'warning' 
   RETURN: 'warning',
   ADJUSTMENT: 'neutral',
   CANCEL: 'danger',
+  LOSS: 'danger',
 };
-const UNIT_TONE: Record<UnitStatus, 'success' | 'info' | 'danger' | 'warning' | 'neutral'> = { IN_STOCK: 'success', RESERVED: 'warning', SOLD: 'info', RETURNED: 'neutral', SCRAPPED: 'danger' };
+const UNIT_TONE: Record<UnitStatus, 'success' | 'info' | 'danger' | 'warning' | 'neutral'> = { IN_STOCK: 'success', RESERVED: 'warning', SOLD: 'info', RETURNED: 'neutral', SCRAPPED: 'danger', MISSING: 'danger' };
 const lower = (s: string) => s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' ');
 
 export function InventoryView({ initial }: { initial: { q: string; state: string; tab: string; adjust: boolean } }) {
@@ -48,6 +49,10 @@ export function InventoryView({ initial }: { initial: { q: string; state: string
                 Export
               </a>
             )}
+            <Link className={buttonClass('outline')} href="/admin/stock-counts">
+              <ClipboardCheck className="size-4" />
+              Stock count
+            </Link>
             {can('stockEdit') && (
               <>
                 <Button variant="outline" onClick={() => setUnitModal({ product: null })}>
@@ -163,7 +168,10 @@ function StockTab({ initial, version, onAdjust, onUnit }: { initial: { q: string
                 <Button size="sm" variant="outline" onClick={() => onAdjust(pick(r))}>
                   Adjust
                 </Button>
-                <button type="button" title="Add serial unit" aria-label="Add serial unit" onClick={() => onUnit(pick(r))} className="rounded-full p-2 text-muted hover:bg-surface-2 hover:text-fg">
+                <a href={`/admin/unit-labels?productId=${r.productId}`} target="_blank" rel="noreferrer" title="Print unit barcode labels" aria-label="Print unit labels" className="rounded-full p-2 text-muted hover:bg-surface-2 hover:text-fg">
+                  <Printer className="size-4" />
+                </a>
+                <button type="button" title="Register a code for an unlabelled piece" aria-label="Add serial unit" onClick={() => onUnit(pick(r))} className="rounded-full p-2 text-muted hover:bg-surface-2 hover:text-fg">
                   <ScanBarcode className="size-4" />
                 </button>
               </span>
@@ -325,7 +333,7 @@ function AdjustModal({ initial, onClose, onDone }: { initial: PickedProduct | nu
         reason: [reason, note.trim()].filter(Boolean).join(' — '),
         unitCost: dir === 'in' && can('cost') ? inputToPaise(cost) ?? undefined : undefined,
       });
-      toast(`${product.sku}: ${r.available} available now`);
+      toast(isHeld(r) ? r.message : `${product.sku}: ${r.available} available now`);
       onDone();
       onClose();
     } catch (err) {

@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 export const API = (process.env.API_URL ?? 'http://localhost:4000').replace(/\/$/, '');
 export const OWNER = { email: process.env.ADMIN_EMAIL ?? 'owner@unibody.in', password: process.env.ADMIN_PASSWORD ?? 'Unibody@2026' };
 export const PACKER = { email: 'packer@unibody.in', password: OWNER.password };
+export const MANAGER = { email: 'manager@unibody.in', password: OWNER.password };
 
 const STATE = 'e2e-results/state.json';
 export function saveState(s: Record<string, string>) {

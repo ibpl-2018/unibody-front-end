@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Lock, Pencil, Plus, UserPlus } from 'lucide-react';
-import { ADMIN_ROLES, GST_STATE_CODES, formatINR, type AdminRole, type AdminUserDTO, type ServiceAreaDTO, type SettingsDTO, type SettingsInput } from '@unibody/shared';
+import { ADMIN_ROLES, GST_STATE_CODES, ROLE_LABEL, formatINR, type AdminRole, type AdminUserDTO, type ServiceAreaDTO, type SettingsDTO, type SettingsInput } from '@unibody/shared';
 import { Badge, Button, Checkbox, Field, Input, Modal, Select, Skeleton, Switch, Textarea, ThemeToggle } from '@/components/ui';
 import { useToast } from '@/components/ui/toast';
 import { DataTable, ErrorState, FormGrid, LineTabs, MoneyInput, PageHeader, Panel, type Column } from '@/components/admin/ui';
@@ -12,9 +12,9 @@ import { cn } from '@/lib/cn';
 
 type Tab = 'store' | 'pricing' | 'messaging' | 'areas' | 'staff' | 'appearance';
 const ROLE_INFO: Record<AdminRole, string> = {
-  OWNER: 'Everything, including costs, reports, settings and staff',
-  MANAGER: 'Orders, catalog, stock, purchases, customers, offers and reports (no costs)',
-  PACKER: 'Orders, packing, shipping and stock look-up only',
+  OWNER: 'Everything, including costs, staff, approvals and the security desk. Only one person.',
+  MANAGER: 'Orders, catalog, stock, purchases, customers, offers and reports (no costs). Write-offs, price changes, deletes and late cancels need Super Admin approval.',
+  PACKER: 'Orders, scan-to-pack, shipping, stock counts and stock look-up. Late cancels / returns need approval.',
 };
 
 export default function SettingsPage() {
@@ -396,7 +396,7 @@ function Staff() {
         </div>
       ),
     },
-    { key: 'r', header: 'Role', cell: (u) => <Badge tone={u.role === 'OWNER' ? 'purple' : u.role === 'MANAGER' ? 'info' : 'neutral'}>{u.role.charAt(0) + u.role.slice(1).toLowerCase()}</Badge> },
+    { key: 'r', header: 'Role', cell: (u) => <Badge tone={u.role === 'OWNER' ? 'purple' : u.role === 'MANAGER' ? 'info' : 'neutral'}>{ROLE_LABEL[u.role]}</Badge> },
     { key: 'l', header: 'Last sign-in', hide: 'md', cell: (u) => <span className="text-[13px] text-muted">{u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : 'Never'}</span> },
     { key: 's', header: 'Status', cell: (u) => <Badge tone={u.active ? 'success' : 'neutral'} dot>{u.active ? 'Active' : 'Disabled'}</Badge> },
     {
@@ -423,7 +423,7 @@ function Staff() {
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         {ADMIN_ROLES.map((r) => (
           <div key={r} className="rounded-2xl border border-line-subtle bg-surface p-4">
-            <p className="text-sm font-semibold">{r.charAt(0) + r.slice(1).toLowerCase()}</p>
+            <p className="text-sm font-semibold">{ROLE_LABEL[r]}</p>
             <p className="mt-1 text-xs text-muted">{ROLE_INFO[r]}</p>
           </div>
         ))}
@@ -489,9 +489,10 @@ function StaffModal({ item, self, onClose, onSaved }: { item?: AdminUserDTO; sel
         </FormGrid>
         <Field label="Role" hint={ROLE_INFO[role]}>
           <Select value={role} onChange={(e) => setRole(e.target.value as AdminRole)} disabled={self}>
-            {ADMIN_ROLES.map((r) => (
+            {/* There is only one Super Admin — it can't be given to anyone else. */}
+            {ADMIN_ROLES.filter((r) => r !== 'OWNER' || role === 'OWNER').map((r) => (
               <option key={r} value={r}>
-                {r.charAt(0) + r.slice(1).toLowerCase()}
+                {ROLE_LABEL[r]}
               </option>
             ))}
           </Select>

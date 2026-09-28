@@ -25,7 +25,10 @@ import {
   Warehouse,
   X,
   ClipboardList,
+  ScanLine,
+  ShieldAlert,
 } from 'lucide-react';
+import { ROLE_LABEL } from '@unibody/shared';
 import { formatINR, type AdminOrderListItem, type AdminProductListItem } from '@unibody/shared';
 import { Logo, StatusBadge, ThemeToggle } from '@/components/ui';
 import { cn } from '@/lib/cn';
@@ -39,7 +42,7 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   perm?: Perm;
-  badge?: 'ordersToAct' | 'openLeads' | 'lowStock';
+  badge?: 'ordersToAct' | 'openLeads' | 'lowStock' | 'security';
   match?: string[];
 }
 const NAV: { section: string; items: NavItem[] }[] = [
@@ -63,6 +66,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
     section: 'Stock',
     items: [
       { href: '/admin/inventory', label: 'Inventory', icon: Warehouse, badge: 'lowStock' },
+      { href: '/admin/stock-counts', label: 'Stock counts', icon: ScanLine },
       { href: '/admin/purchases', label: 'Purchases', icon: ClipboardList, perm: 'purchases' },
       { href: '/admin/suppliers', label: 'Suppliers', icon: Truck, perm: 'suppliers' },
     ],
@@ -74,6 +78,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
       { href: '/admin/reports', label: 'Reports', icon: LineChart, perm: 'reports' },
     ],
   },
+  { section: 'Control', items: [{ href: '/admin/security', label: 'Security desk', icon: ShieldAlert, perm: 'security', badge: 'security' }] },
   { section: 'System', items: [{ href: '/admin/settings', label: 'Settings', icon: Settings2 }] },
 ];
 
@@ -140,7 +145,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-fg text-sm font-semibold text-bg">{user.name.slice(0, 1).toUpperCase()}</span>
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-[13px] font-semibold">
-              {user.name} <span className="font-normal text-subtle">· {user.role.charAt(0) + user.role.slice(1).toLowerCase()}</span>
+              {user.name} <span className="font-normal text-subtle">· {ROLE_LABEL[user.role]}</span>
             </p>
             <p className="truncate text-[11px] text-muted">{user.email}</p>
           </div>
