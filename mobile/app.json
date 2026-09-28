@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "unibody",
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#ffffff",
+    "backgroundColor": "#000000",
     "ios": {
       "bundleIdentifier": "in.unibody.app",
       "supportsTablet": true,
@@ -42,7 +42,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#000000",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 96,
           "dark": {

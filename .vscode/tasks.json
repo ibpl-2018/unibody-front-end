@@ -1,0 +1,28 @@
+{
+  // Reference iOS simulator for Unibody: iPhone 17 Pro Max. ⇧⌘B runs the mobile app on it.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Mobile iOS: run on iPhone 17 Pro Max",
+      "type": "shell",
+      "command": "./tools/run-ios.sh",
+      "options": { "cwd": "${workspaceFolder}/mobile" },
+      "group": { "kind": "build", "isDefault": true },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Web: dev server",
+      "type": "shell",
+      "command": "pnpm dev",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "E2E: Playwright suite",
+      "type": "shell",
+      "command": "pnpm e2e",
+      "problemMatcher": []
+    }
+  ]
+}

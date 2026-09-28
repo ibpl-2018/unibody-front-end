@@ -1,9 +1,11 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { LaunchIntro } from '@/components/launch-intro';
 import { CartProvider, useCart } from '@/state/cart';
 import { SessionProvider, useSession } from '@/state/session';
 import { StoreConfigProvider } from '@/state/store-config';
@@ -16,6 +18,7 @@ function Navigator() {
   const { ready: cartReady } = useCart();
   const { ready: sessionReady } = useSession();
   const ready = themeReady && cartReady && sessionReady;
+  const [intro, setIntro] = useState(true); // animated intro once per launch, over the first screen
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});
@@ -32,28 +35,31 @@ function Navigator() {
   if (!ready) return null;
 
   return (
-    <NavThemeProvider value={navTheme}>
-      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      <Stack
-        screenOptions={{
-          headerBackTitle: 'Back',
-          headerShadowVisible: false,
-          headerTintColor: colors.accent,
-          headerTitleStyle: { color: colors.fg, fontWeight: '600' },
-          headerStyle: { backgroundColor: colors.bg },
-          contentStyle: { backgroundColor: colors.bg },
-        }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Home' }} />
-        <Stack.Screen name="shop/[family]" options={{ title: '' }} />
-        <Stack.Screen name="parts" options={{ title: 'Parts' }} />
-        <Stack.Screen name="product/[slug]" options={{ title: '' }} />
-        <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
-        <Stack.Screen name="confirmation/[orderNo]" options={{ title: 'Order placed', headerBackVisible: false, gestureEnabled: false }} />
-        <Stack.Screen name="order/[orderNo]" options={{ title: 'Track order' }} />
-        <Stack.Screen name="track" options={{ title: 'Track an order' }} />
-        <Stack.Screen name="more" options={{ title: 'Help & settings' }} />
-      </Stack>
-    </NavThemeProvider>
+    <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <NavThemeProvider value={navTheme}>
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        <Stack
+          screenOptions={{
+            headerBackTitle: 'Back',
+            headerShadowVisible: false,
+            headerTintColor: colors.accent,
+            headerTitleStyle: { color: colors.fg, fontWeight: '600' },
+            headerStyle: { backgroundColor: colors.bg },
+            contentStyle: { backgroundColor: colors.bg },
+          }}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Home' }} />
+          <Stack.Screen name="shop/[family]" options={{ title: '' }} />
+          <Stack.Screen name="parts" options={{ title: 'Parts' }} />
+          <Stack.Screen name="product/[slug]" options={{ title: '' }} />
+          <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
+          <Stack.Screen name="confirmation/[orderNo]" options={{ title: 'Order placed', headerBackVisible: false, gestureEnabled: false }} />
+          <Stack.Screen name="order/[orderNo]" options={{ title: 'Track order' }} />
+          <Stack.Screen name="track" options={{ title: 'Track an order' }} />
+          <Stack.Screen name="more" options={{ title: 'Help & settings' }} />
+        </Stack>
+      </NavThemeProvider>
+      {intro ? <LaunchIntro onDone={() => setIntro(false)} /> : null}
+    </View>
   );
 }
 
