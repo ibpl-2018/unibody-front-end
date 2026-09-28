@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "packageManager": "pnpm@10.28.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build:shared": "pnpm --filter @unibody/shared build",
     "dev": "pnpm build:shared && pnpm --filter @unibody/web dev",
@@ -13,6 +15,10 @@
     "test": "pnpm build:shared && pnpm -r test",
     "sync-shared": "node ./tools/sync-shared.mjs",
     "mobile:install": "cd mobile && npm ci",
-    "mobile:typecheck": "cd mobile && npm run typecheck"
+    "mobile:typecheck": "cd mobile && npm run typecheck",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
   }
 }

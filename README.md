@@ -42,6 +42,19 @@ On the Android emulator either run `adb reverse tcp:4000 tcp:4000 && adb reverse
 
 Full-stack regression (API + web, live): `pnpm regression` in unibody-back-end.
 
+### Browser E2E (Playwright)
+
+`pnpm e2e` drives the installed Google Chrome against a running API + web (API needs `OTP_DEV_MODE=true`, `PAYMENTS_MOCK=true`,
+and `RATE_LIMIT_ALLOWLIST=127.0.0.1,::1,::ffff:127.0.0.1` so repeated runs aren't rate-limited). ~4 minutes. It covers:
+
+- **Journeys**: product → bag → OTP checkout → COD order; admin confirm → pack → shipment → ship (GST invoice) while the
+  customer's tracking page updates live over SSE; online payment on `/pay/:orderNo` (mock Razorpay); "My orders" OTP sign-in;
+  packer role locked out of reports/purchases/invoices.
+- **Sweep**: every storefront and admin screen at desktop (1440) and phone (390) widths, light and dark — fails on browser
+  errors, 5xx responses, error screens, horizontal overflow, being bounced to the admin login, or leftover "PartsBay" text.
+
+Screenshots land in `e2e-results/screens/`, the HTML report in `e2e-results/report/` (`pnpm exec playwright show-report e2e-results/report`).
+
 ## Features
 
 **Storefront** — part finder (device → model → part, remembers "My device"), search by A-number, family/model listings with filters,
