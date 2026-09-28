@@ -1,0 +1,7 @@
+packages:
+  - shared
+  - web
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
