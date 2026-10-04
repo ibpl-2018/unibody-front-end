@@ -85,7 +85,7 @@ export default function InvoicesPage() {
     if (rows?.length && !rows.some((r) => r.id === active)) setActive(rows[0].id);
   }, [rows, active]);
   if (!allowed) return <NoAccess what="invoices" />;
-  const toggle = (id: string) => setSelected((s) => (s.has(id) ? (s.delete(id), new Set(s)) : new Set(s.add(id))));
+  const toggle = (id: string) => setSelected((s) => { const n = new Set(s); if (!n.delete(id)) n.add(id); return n; });
 
   const pick = (r: Row) => {
     // Phones get the full-screen A4 view; wide screens preview beside the list.

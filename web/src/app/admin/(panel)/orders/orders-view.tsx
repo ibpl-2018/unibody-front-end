@@ -43,7 +43,7 @@ export function OrdersView({ initial }: { initial: { status: string; q: string; 
   useEffect(() => setSelected(new Set()), [status, dq, payment, city, page]);
 
   const counts = data?.counts ?? {};
-  const toggle = (id: string) => setSelected((s) => (s.has(id) ? (s.delete(id), new Set(s)) : new Set(s.add(id))));
+  const toggle = (id: string) => setSelected((s) => { const n = new Set(s); if (!n.delete(id)) n.add(id); return n; });
   const toggleAll = (ids: string[], on: boolean) => setSelected(on ? new Set(ids) : new Set());
 
   async function bulk(to: OrderStatus) {

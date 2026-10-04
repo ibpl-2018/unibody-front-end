@@ -247,7 +247,7 @@ export function ProductsView({ initial }: { initial: ProductFilters }) {
             rowKey={(p) => p.id}
             rowHref={(p) => `/admin/products/${p.id}`}
             selected={edit ? selected : undefined}
-            onToggle={edit ? (id) => setSelected((s) => (s.has(id) ? (s.delete(id), new Set(s)) : new Set(s.add(id)))) : undefined}
+            onToggle={edit ? (id) => setSelected((s) => { const n = new Set(s); if (!n.delete(id)) n.add(id); return n; }) : undefined}
             onToggleAll={(ids, on) => setSelected(on ? new Set(ids) : new Set())}
             className={loading && data ? 'opacity-70 transition-opacity' : undefined}
             dense

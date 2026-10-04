@@ -140,7 +140,7 @@ export default function StockCountPage() {
                       <Checkbox
                         aria-label={`Write off ${m.code}`}
                         checked={writeOff.has(m.unitId)}
-                        onChange={() => setWriteOff((s) => (s.has(m.unitId) ? (s.delete(m.unitId), new Set(s)) : new Set(s.add(m.unitId))))}
+                        onChange={() => setWriteOff((s) => { const n = new Set(s); if (!n.delete(m.unitId)) n.add(m.unitId); return n; })}
                       />
                     )}
                     <span className="font-mono font-semibold">{m.code}</span>
